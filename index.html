@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharmacist Risk Assessment System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+            background-color: #f0f4f8;
+        }
+        /* 3D Effects */
+        .card-3d {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 20px 20px 60px #d9d9d9, -20px -20px 60px #ffffff;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .btn-3d {
+            box-shadow: 4px 4px 10px rgba(0,0,0,0.1), -4px -4px 10px rgba(255,255,255,0.8);
+            transition: all 0.2s;
+        }
+        .btn-3d:active {
+            box-shadow: inset 4px 4px 10px rgba(0,0,0,0.1), inset -4px -4px 10px rgba(255,255,255,0.8);
+            transform: translateY(2px);
+        }
+        .matrix-cell {
+            transition: all 0.3s ease;
+        }
+        .matrix-cell:hover {
+            transform: scale(1.1);
+            z-index: 10;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        /* Input styling */
+        .input-style {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-style:focus {
+            border-color: #3b82f6;
+        }
+        /* Hidden class for tabs */
+        .hidden-tab { display: none !important; }
+        
+        /* Modal Backdrop */
+        .modal-backdrop {
+            background-color: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col min-h-screen">
+
+    <!-- Header Banner -->
+    <header class="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-800 text-white shadow-xl relative overflow-hidden">
+        <div class="absolute inset-0 bg-white/10 opacity-20 transform -skew-x-12 translate-x-1/4"></div>
+        <div class="container mx-auto px-4 py-12 md:py-16 relative z-10 flex flex-col md:flex-row items-center justify-between">
+            <div class="flex items-center gap-6">
+                <div class="bg-white/20 p-5 rounded-2xl shadow-inner backdrop-blur-sm">
+                    <i class="fa-solid fa-shield-halved text-5xl text-blue-100"></i>
+                </div>
+                <div>
+                    <h1 class="text-4xl md:text-5xl font-bold tracking-tight" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">Pharmacist Risk Assessment System</h1>
+                    <p class="text-blue-100 mt-2 text-base md:text-lg font-medium"><i class="fa-solid fa-hospital-user mr-2"></i>ระบบบริหารจัดการความเสี่ยงทางคลินิก กลุ่มงานเภสัชกรรม โรงพยาบาลสมเด็จพระพุทธเลิศหล้า</p>
+                </div>
+            </div>
+            <div id="admin-badge" class="hidden mt-4 md:mt-0 bg-red-500 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-md flex items-center gap-2">
+                <i class="fa-solid fa-user-shield"></i> Admin Mode
+                <button onclick="logoutAdmin()" class="ml-2 hover:text-red-200" title="ออกจากระบบ"><i class="fa-solid fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-md sticky top-0 z-40">
+        <div class="container mx-auto px-4 flex justify-center md:justify-start overflow-x-auto">
+            <button onclick="switchTab('tab1')" id="nav-tab1" class="px-6 py-4 text-blue-600 border-b-4 border-blue-600 font-semibold whitespace-nowrap transition-colors"><i class="fa-solid fa-chart-pie mr-2"></i> Dashboard</button>
+            <button onclick="switchTab('tab2')" id="nav-tab2" class="px-6 py-4 text-slate-500 border-b-4 border-transparent hover:text-blue-500 font-semibold whitespace-nowrap transition-colors"><i class="fa-solid fa-pen-to-square mr-2"></i> บันทึกความเสี่ยง</button>
+            <button onclick="switchTab('tab3')" id="nav-tab3" class="px-6 py-4 text-slate-500 border-b-4 border-transparent hover:text-blue-500 font-semibold whitespace-nowrap transition-colors"><i class="fa-solid fa-magnifying-glass-chart mr-2"></i> Risk Assessment</button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 py-8">
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="fixed inset-0 bg-white/80 z-50 flex flex-col items-center justify-center hidden">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600 shadow-lg"></div>
+            <p class="mt-4 text-blue-800 font-semibold animate-pulse">กำลังประมวลผลข้อมูล...</p>
+        </div>
+
+        <!-- ==================== TAB 1: Dashboard ==================== -->
+        <div id="tab1" class="space-y-6">
+            <!-- Dashboard Filters -->
+            <div class="card-3d p-4 flex flex-col md:flex-row justify-between items-center gap-4 bg-white mb-2">
+                <div class="flex items-center gap-2 text-blue-800 font-semibold">
+                    <i class="fa-solid fa-filter"></i> ตัวกรองข้อมูล Dashboard
+                </div>
+                <div class="flex flex-wrap gap-2 w-full md:w-auto items-center">
+                    <select id="filter_year_1" onchange="updateDashboard()" class="input-style w-auto text-sm py-1">
+                        <option value="">ทุกปีงบประมาณ</option>
+                        <option value="2580">2580</option>
+                        <option value="2579">2579</option>
+                        <option value="2578">2578</option>
+                        <option value="2577">2577</option>
+                        <option value="2576">2576</option>
+                        <option value="2575">2575</option>
+                        <option value="2574">2574</option>
+                        <option value="2573">2573</option>
+                        <option value="2572">2572</option>
+                        <option value="2571">2571</option>
+                        <option value="2570">2570</option>
+                        <option value="2569">2569</option>
+                        <option value="2568">2568</option>
+                        <option value="2567">2567</option>
+                        <option value="2566">2566</option>
+                    </select>
+                    <div class="flex items-center gap-1">
+                        <input type="date" id="filter_start_1" onchange="updateDashboard()" class="input-style w-auto text-sm py-1 text-slate-500" title="วันที่เริ่มต้น (เกิดเหตุ)">
+                        <span class="text-slate-400">-</span>
+                        <input type="date" id="filter_end_1" onchange="updateDashboard()" class="input-style w-auto text-sm py-1 text-slate-500" title="วันที่สิ้นสุด (เกิดเหตุ)">
+                    </div>
+                    <button onclick="document.getElementById('filter_year_1').value=''; document.getElementById('filter_start_1').value=''; document.getElementById('filter_end_1').value=''; updateDashboard();" class="text-slate-400 hover:text-red-500 text-sm ml-2" title="ล้างตัวกรอง"><i class="fa-solid fa-rotate-right"></i> ล้าง</button>
+                </div>
+            </div>
+
+            <!-- Stats Row -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="card-3d p-6 bg-gradient-to-br from-blue-50 to-white flex items-center gap-4">
+                    <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-2xl shadow-inner"><i class="fa-solid fa-file-waveform"></i></div>
+                    <div><p class="text-slate-500 text-sm">อุบัติการณ์ทั้งหมด</p><h3 class="text-3xl font-bold text-slate-800" id="dash-total">0</h3></div>
+                </div>
+                <div class="card-3d p-6 bg-gradient-to-br from-amber-50 to-white flex items-center gap-4">
+                    <div class="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-2xl shadow-inner"><i class="fa-solid fa-hourglass-half"></i></div>
+                    <div><p class="text-slate-500 text-sm">รอแก้ไข</p><h3 class="text-3xl font-bold text-amber-600" id="dash-pending">0</h3></div>
+                </div>
+                <div class="card-3d p-6 bg-gradient-to-br from-emerald-50 to-white flex items-center gap-4">
+                    <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-2xl shadow-inner"><i class="fa-solid fa-check-circle"></i></div>
+                    <div><p class="text-slate-500 text-sm">แก้ไขแล้ว</p><h3 class="text-3xl font-bold text-emerald-600" id="dash-resolved">0</h3></div>
+                </div>
+            </div>
+
+            <!-- Charts Row 1 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="card-3d p-6">
+                    <h3 class="text-lg font-semibold mb-4 text-slate-700 border-b pb-2"><i class="fa-solid fa-pills text-blue-500 mr-2"></i>ประเภทความคลาดเคลื่อนทางยา</h3>
+                    <div class="h-64"><canvas id="chartErrorType"></canvas></div>
+                </div>
+                <div class="card-3d p-6">
+                    <h3 class="text-lg font-semibold mb-4 text-slate-700 border-b pb-2"><i class="fa-solid fa-triangle-exclamation text-orange-500 mr-2"></i>ระดับความรุนแรง (Severity)</h3>
+                    <div class="h-64 flex justify-center"><canvas id="chartSeverity"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Charts Row 2 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="card-3d p-6">
+                    <h3 class="text-lg font-semibold mb-4 text-slate-700 border-b pb-2"><i class="fa-solid fa-temperature-arrow-up text-red-500 mr-2"></i>Risk Level (ระดับความเสี่ยง)</h3>
+                    <div class="h-64 flex justify-center"><canvas id="chartRiskLevel"></canvas></div>
+                </div>
+                <div class="card-3d p-6">
+                    <h3 class="text-lg font-semibold mb-4 text-slate-700 border-b pb-2"><i class="fa-solid fa-calendar-days text-indigo-500 mr-2"></i>อุบัติการณ์แยกตามปีงบประมาณ</h3>
+                    <div class="h-64"><canvas id="chartYear"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Top 5 -->
+            <div class="card-3d p-6">
+                <h3 class="text-lg font-semibold mb-4 text-slate-700 border-b pb-2"><i class="fa-solid fa-fire text-red-600 mr-2"></i>5 อันดับ อุบัติการณ์ความเสี่ยงสูงที่สุด</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 text-sm uppercase">
+                                <th class="p-3 rounded-tl-lg">วันที่</th>
+                                <th class="p-3">หัวข้อความเสี่ยง</th>
+                                <th class="p-3">ประเภท</th>
+                                <th class="p-3 text-center">Score</th>
+                                <th class="p-3 rounded-tr-lg text-center">ระดับ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top5-table-body" class="text-sm">
+                            <!-- JS will populate -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pivot Table -->
+            <div class="card-3d p-6">
+                <h3 class="text-lg font-semibold mb-4 text-slate-700 border-b pb-2">
+                    <i class="fa-solid fa-table-cells text-emerald-500 mr-2"></i>สรุปประเภทความคลาดเคลื่อนทางยา แบ่งตามระดับความรุนแรง
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-center border-collapse text-sm min-w-[800px]">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 uppercase border-b border-slate-200">
+                                <th class="p-3 text-left w-64">ประเภทความคลาดเคลื่อน</th>
+                                <th class="p-3">A</th><th class="p-3">B</th><th class="p-3">C</th>
+                                <th class="p-3">D</th><th class="p-3">E</th><th class="p-3">F</th>
+                                <th class="p-3">G</th><th class="p-3">H</th><th class="p-3">I</th>
+                                <th class="p-3 font-bold bg-slate-100 rounded-tr-lg">รวม</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pivot-table-body" class="divide-y divide-slate-100">
+                            <!-- JS will populate -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 2: บันทึกความเสี่ยง ==================== -->
+        <div id="tab2" class="hidden-tab space-y-6">
+            <div class="card-3d p-6 md:p-8">
+                <div class="flex justify-between items-center mb-6 border-b pb-3 cursor-pointer group" onclick="toggleForm()" title="คลิกเพื่อ ยุบ/ขยาย แบบฟอร์ม">
+                    <h2 class="text-2xl font-bold text-blue-800 flex items-center gap-2">
+                        <i class="fa-solid fa-pen-to-square"></i> แบบฟอร์มบันทึกความเสี่ยง
+                        <i class="fa-solid fa-chevron-up text-sm text-slate-400 group-hover:text-blue-600 transition ml-2" id="formToggleIcon"></i>
+                    </h2>
+                    <button onclick="resetForm('riskForm'); event.stopPropagation();" class="text-slate-400 hover:text-red-500 transition px-2 py-1"><i class="fa-solid fa-rotate-right"></i> ล้างข้อมูล</button>
+                </div>
+
+                <form id="riskForm" onsubmit="handleFormSubmit(event, 'riskForm')" class="space-y-4 transition-all duration-300">
+                    <input type="hidden" id="r_id" name="id">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">ปีงบประมาณ <span class="text-red-500">*</span></label>
+                            <select id="r_fiscalYear" name="fiscalYear" required class="input-style">
+                                <option value="2580">2580</option>
+                                <option value="2579">2579</option>
+                                <option value="2578">2578</option>
+                                <option value="2577">2577</option>
+                                <option value="2576">2576</option>
+                                <option value="2575">2575</option>
+                                <option value="2574">2574</option>
+                                <option value="2573">2573</option>
+                                <option value="2572">2572</option>
+                                <option value="2571">2571</option>
+                                <option value="2570">2570</option>
+                                <option value="2569">2569</option>
+                                <option value="2568">2568</option>
+                                <option value="2567" selected>2567</option>
+                                <option value="2566">2566</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium mb-1">Risk Title (หัวข้อเหตุการณ์) <span class="text-red-500">*</span></label>
+                            <input type="text" id="r_title" name="title" required class="input-style" placeholder="ระบุหัวข้อสั้นๆ ที่เข้าใจง่าย">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">วันที่เกิดเหตุการณ์ <span class="text-red-500">*</span></label>
+                            <input type="date" id="r_incidentDate" name="incidentDate" required class="input-style">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">วันที่ค้นพบ <span class="text-red-500">*</span></label>
+                            <input type="date" id="r_discoveryDate" name="discoveryDate" required class="input-style">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">วันที่บันทึก (อัตโนมัติ)</label>
+                            <input type="date" id="r_recordDate" name="recordDate" readonly class="input-style bg-slate-100 text-slate-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">แหล่งที่มา/วิธีการค้นพบ <span class="text-red-500">*</span></label>
+                            <select id="r_sourceType" name="sourceType" required class="input-style" onchange="toggleSourceDetail()">
+                                <option value="">-- เลือก --</option>
+                                <option value="OPD">ผู้ป่วยนอก (OPD)</option>
+                                <option value="IPD">ผู้ป่วยใน (IPD)</option>
+                                <option value="นอกรพ.">นอกรพ.</option>
+                            </select>
+                        </div>
+                        <div id="sourceDetailDiv" class="hidden">
+                            <label class="block text-sm font-medium mb-1 text-blue-600" id="sourceDetailLabel">ระบุรายละเอียดแผนก</label>
+                            <input type="text" id="r_sourceDetail" name="sourceDetail" class="input-style" placeholder="เช่น อายุรกรรมชาย, ห้องตรวจ 1">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">ประเภทความคลาดเคลื่อนทางยา <span class="text-red-500">*</span></label>
+                            <select id="r_errorType" name="errorType" required class="input-style">
+                                <option value="">-- เลือกประเภท --</option>
+                                <option value="ADE จาก D/I">ADE จาก D/I</option>
+                                <option value="ADE จากแพ้ยาซ้ำเนื่องจากระบบของรพ.">ADE จากแพ้ยาซ้ำเนื่องจากระบบของรพ.</option>
+                                <option value="ADE จากแพ้ยาซ้ำนอกระบบของรพ.">ADE จากแพ้ยาซ้ำนอกระบบของรพ.</option>
+                                <option value="ADE จากการไม่ได้ปรับขนาดยา/ ยาไม่เหมาะสมกับสภาวะของผู้ป่วย">ADE จากการไม่ได้ปรับขนาดยา/ ยาไม่เหมาะสมกับสภาวะของผู้ป่วย</option>
+                                <option value="ADE ที่เกี่ยวข้องกับระบบ MR">ADE ที่เกี่ยวข้องกับระบบ MR</option>
+                                <option value="ADE ไม่ได้รับยาที่ควรได้รับ">ADE ไม่ได้รับยาที่ควรได้รับ</option>
+                                <option value="ADE ได้ยามากกว่าขนาดแนะนำ">ADE ได้ยามากกว่าขนาดแนะนำ</option>
+                                <option value="ADE ได้ยาน้อยกว่าขนาดแนะนำ">ADE ได้ยาน้อยกว่าขนาดแนะนำ</option>
+                                <option value="ADE จากขั้นตอนการจัด/จ่ายยา">ADE จากขั้นตอนการจัด/จ่ายยา</option>
+                                <option value="ADE จากขั้นตอนการบริหารยา">ADE จากขั้นตอนการบริหารยา</option>
+                                <option value="Prescribing error">Prescribing error</option>
+                                <option value="Transcribing error">Transcribing error</option>
+                                <option value="Administration error">Administration error</option>
+                                <option value="อื่นๆ">อื่นๆ</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">ระดับความรุนแรง <span class="text-red-500">*</span></label>
+                            <select id="r_severity" name="severity" required class="input-style">
+                                <option value="">-- เลือระดับ --</option>
+                                <option value="A">A - เกิดความคลาดเคลื่อน แต่ยายังไม่ถึงผู้ป่วย</option>
+                                <option value="B">B - ยาถึงผู้ป่วย แต่ยังไม่ได้บริหารยา</option>
+                                <option value="C">C - บริหารยาแล้ว แต่ไม่เกิดอันตราย</option>
+                                <option value="D">D - บริหารยาแล้ว เกิดอันตราย ต้องเฝ้าระวัง</option>
+                                <option value="E">E - เกิดอันตรายชั่วคราว ต้องได้รับการรักษา</option>
+                                <option value="F">F - เกิดอันตรายชั่วคราว ต้องนอนรพ.นานขึ้น</option>
+                                <option value="G">G - เกิดอันตรายถาวร</option>
+                                <option value="H">H - ต้องช่วยชีวิต (Life-saving)</option>
+                                <option value="I">I - เสียชีวิต</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">ชื่อยา (ถ้ามี)</label>
+                            <input type="text" id="r_drugName" name="drugName" class="input-style" placeholder="ระบุชื่อยาที่เกี่ยวข้อง">
+                        </div>
+                        <div class="flex items-center mt-6">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="r_isHAD" name="isHAD" value="HAD" class="w-5 h-5 text-red-600 rounded border-gray-300 focus:ring-red-500">
+                                <span class="ml-2 text-sm font-medium text-red-600 border border-red-200 bg-red-50 px-2 py-1 rounded">High Alert Drug (HAD)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">เหตุการณ์ (รายละเอียด) <span class="text-red-500">*</span></label>
+                        <textarea id="r_incidentDesc" name="incidentDesc" rows="4" required class="input-style" placeholder="บรรยายเหตุการณ์ที่เกิดขึ้นอย่างละเอียด (สามารถลากมุมขวาล่างเพื่อขยายกล่องข้อความได้)"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">การจัดการเบื้องต้น <span class="text-red-500">*</span></label>
+                        <textarea id="r_initialMgmt" name="initialMgmt" rows="3" required class="input-style" placeholder="การแก้ไขปัญหาเฉพาะหน้า (สามารถลากมุมขวาล่างเพื่อขยายกล่องข้อความได้)"></textarea>
+                    </div>
+
+                    <div class="border-2 border-dashed border-blue-200 rounded-xl p-4 text-center hover:bg-blue-50 transition cursor-pointer relative">
+                        <input type="file" id="r_imageUpload" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="previewImage(this)">
+                        <div id="imagePreviewContainer" class="hidden flex-col items-center">
+                            <img id="imagePreview" class="max-h-40 rounded shadow mb-2">
+                            <p class="text-sm text-green-600"><i class="fa-solid fa-check"></i> เลือกไฟล์แล้ว (คลิกเพื่อเปลี่ยน)</p>
+                        </div>
+                        <div id="imagePlaceholder">
+                            <i class="fa-regular fa-image text-4xl text-blue-300 mb-2"></i>
+                            <p class="text-sm text-slate-500">แนบรูปภาพประกอบ (ถ้ามี) <br><span class="text-xs text-slate-400">คลิก หรือ ลากไฟล์มาวาง</span></p>
+                        </div>
+                        <input type="hidden" id="r_imageBase64" name="imageBase64">
+                    </div>
+
+                    <div class="pt-4 flex justify-end gap-3 border-t">
+                        <button type="submit" class="btn-3d bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-medium"><i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูล</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Table Section -->
+            <div class="card-3d p-6">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+                    <h3 class="text-lg font-bold text-slate-700"><i class="fa-solid fa-table-list mr-2"></i>รายการอุบัติการณ์ความเสี่ยง</h3>
+                    
+                    <!-- Filters -->
+                    <div class="flex flex-wrap gap-2 w-full md:w-auto items-center">
+                        <select id="filter_year_2" onchange="renderTable('tab2-tbody', 2)" class="input-style w-auto text-sm py-1">
+                            <option value="">ทุกปีงบประมาณ</option>
+                            <option value="2580">2580</option>
+                            <option value="2579">2579</option>
+                            <option value="2578">2578</option>
+                            <option value="2577">2577</option>
+                            <option value="2576">2576</option>
+                            <option value="2575">2575</option>
+                            <option value="2574">2574</option>
+                            <option value="2573">2573</option>
+                            <option value="2572">2572</option>
+                            <option value="2571">2571</option>
+                            <option value="2570">2570</option>
+                            <option value="2569">2569</option>
+                            <option value="2568">2568</option>
+                            <option value="2567">2567</option>
+                            <option value="2566">2566</option>
+                        </select>
+                        <div class="flex items-center gap-1">
+                            <input type="date" id="filter_start_2" onchange="renderTable('tab2-tbody', 2)" class="input-style w-auto text-sm py-1 text-slate-500" title="วันที่เริ่มต้น (เกิดเหตุ)">
+                            <span class="text-slate-400">-</span>
+                            <input type="date" id="filter_end_2" onchange="renderTable('tab2-tbody', 2)" class="input-style w-auto text-sm py-1 text-slate-500" title="วันที่สิ้นสุด (เกิดเหตุ)">
+                        </div>
+                        <select id="filter_severity_2" onchange="renderTable('tab2-tbody', 2)" class="input-style w-auto text-sm py-1">
+                            <option value="">ทุกระดับความรุนแรง</option>
+                            <option value="A">A</option><option value="B">B</option><option value="C">C</option>
+                            <option value="D">D</option><option value="E">E</option><option value="F">F</option>
+                            <option value="G">G</option><option value="H">H</option><option value="I">I</option>
+                        </select>
+                        <div class="relative w-full md:w-48">
+                            <input type="text" id="search_tab2" onkeyup="renderTable('tab2-tbody', 2)" placeholder="ค้นหา..." class="input-style text-sm py-1 pl-8">
+                            <i class="fa-solid fa-search absolute left-3 top-2 text-slate-400 text-sm"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[800px]">
+                        <thead>
+                            <tr class="bg-blue-50 text-blue-800 text-sm border-b-2 border-blue-200">
+                                <th class="p-3 cursor-pointer" onclick="sortTable(1)">ปี <i class="fa-solid fa-sort text-xs ml-1"></i></th>
+                                <th class="p-3 cursor-pointer" onclick="sortTable(3)">วันที่เกิดเหตุ <i class="fa-solid fa-sort text-xs ml-1"></i></th>
+                                <th class="p-3">หัวข้อเหตุการณ์</th>
+                                <th class="p-3">ระดับ</th>
+                                <th class="p-3">Risk Level</th>
+                                <th class="p-3">สถานะ</th>
+                                <th class="p-3 text-center w-32">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tab2-tbody" class="text-sm divide-y divide-slate-100">
+                            <!-- JS Generated -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="flex justify-between items-center mt-4">
+                    <div class="text-sm text-slate-500">
+                        แสดง <select id="limit_tab2" onchange="renderTable('tab2-tbody', 2)" class="border rounded px-1 outline-none"><option value="10">10</option><option value="20" selected>20</option><option value="30">30</option><option value="40">40</option><option value="50">50</option><option value="all">All</option></select> รายการ
+                    </div>
+                    <div class="flex gap-1" id="pagination_tab2">
+                        <!-- JS Generated -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 3: Risk Assessment (Admin) ==================== -->
+        <div id="tab3" class="hidden-tab space-y-6">
+            <!-- Login Overlay -->
+            <div id="admin-login" class="card-3d max-w-md mx-auto p-8 text-center">
+                <div class="w-20 h-20 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner text-4xl">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2">ส่วนสำหรับผู้ดูแลระบบ</h2>
+                <p class="text-slate-500 mb-6">กรุณาใส่รหัสผ่านเพื่อเข้าใช้งาน Risk Assessment & RCA</p>
+                <input type="password" id="admin-pwd" class="input-style text-center text-xl tracking-widest mb-4" placeholder="••••">
+                <button onclick="checkAdminPassword()" class="btn-3d w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-semibold">เข้าสู่ระบบ</button>
+            </div>
+
+            <!-- Admin Content (Hidden by default) -->
+            <div id="admin-content" class="hidden space-y-6">
+                <!-- Admin Dashboard -->
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-500">
+                        <p class="text-xs text-slate-500">ความเสี่ยงทั้งหมด</p><h4 class="text-2xl font-bold" id="admin-total">0</h4>
+                    </div>
+                    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-amber-500">
+                        <p class="text-xs text-slate-500">รอแก้ไข (RCA)</p><h4 class="text-2xl font-bold text-amber-600" id="admin-pending">0</h4>
+                    </div>
+                    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-emerald-500">
+                        <p class="text-xs text-slate-500">ประเมิน/แก้ไขแล้ว</p><h4 class="text-2xl font-bold text-emerald-600" id="admin-resolved">0</h4>
+                    </div>
+                </div>
+
+                <!-- Admin Table -->
+                <div class="card-3d p-6">
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+                        <h3 class="text-lg font-bold text-slate-700 whitespace-nowrap"><i class="fa-solid fa-clipboard-check text-indigo-600 mr-2"></i>ตารางประเมินและทบทวนความเสี่ยง (RCA)</h3>
+                        
+                        <div class="flex flex-wrap gap-2 w-full md:w-auto items-center">
+                            <select id="filter_year_3" onchange="renderTable('tab3-tbody', 3)" class="input-style w-auto text-sm py-1">
+                                <option value="">ทุกปีงบประมาณ</option>
+                                <option value="2580">2580</option>
+                                <option value="2579">2579</option>
+                                <option value="2578">2578</option>
+                                <option value="2577">2577</option>
+                                <option value="2576">2576</option>
+                                <option value="2575">2575</option>
+                                <option value="2574">2574</option>
+                                <option value="2573">2573</option>
+                                <option value="2572">2572</option>
+                                <option value="2571">2571</option>
+                                <option value="2570">2570</option>
+                                <option value="2569">2569</option>
+                                <option value="2568">2568</option>
+                                <option value="2567">2567</option>
+                                <option value="2566">2566</option>
+                            </select>
+                            <div class="flex items-center gap-1">
+                                <input type="date" id="filter_start_3" onchange="renderTable('tab3-tbody', 3)" class="input-style w-auto text-sm py-1 text-slate-500" title="วันที่เริ่มต้น (เกิดเหตุ)">
+                                <span class="text-slate-400">-</span>
+                                <input type="date" id="filter_end_3" onchange="renderTable('tab3-tbody', 3)" class="input-style w-auto text-sm py-1 text-slate-500" title="วันที่สิ้นสุด (เกิดเหตุ)">
+                            </div>
+                            <div class="relative w-full md:w-48">
+                                <input type="text" id="search_tab3" onkeyup="renderTable('tab3-tbody', 3)" placeholder="ค้นหาข้อมูล..." class="input-style text-sm py-1 pl-8">
+                                <i class="fa-solid fa-search absolute left-3 top-2 text-slate-400 text-sm"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[1000px]">
+                            <thead>
+                                <tr class="bg-indigo-50 text-indigo-800 text-sm border-b-2 border-indigo-200">
+                                    <th class="p-3">วันที่เกิด</th>
+                                    <th class="p-3">เหตุการณ์</th>
+                                    <th class="p-3">ประเภทข้อผิดพลาด</th>
+                                    <th class="p-3">ระดับ</th>
+                                    <th class="p-3 text-center">Score</th>
+                                    <th class="p-3">สถานะ</th>
+                                    <th class="p-3 text-center w-32">ประเมิน/RCA</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tab3-tbody" class="text-sm divide-y divide-slate-100">
+                                <!-- JS Generated -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="flex justify-between items-center mt-4">
+                        <div class="text-sm text-slate-500">
+                            แสดง <select id="limit_tab3" onchange="renderTable('tab3-tbody', 3)" class="border rounded px-1 outline-none"><option value="10" selected>10</option><option value="20">20</option><option value="30">30</option><option value="40">40</option><option value="50">50</option><option value="all">All</option></select> รายการ
+                        </div>
+                        <div class="flex gap-1" id="pagination_tab3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-slate-800 text-slate-400 text-center py-6 text-sm mt-auto">
+        <p>Pharmacist Risk Assessment System</p>
+        <p class="mt-1">พัฒนาโดย Thanaphon Saengtabtim @2026</p>
+    </footer>
+
+    <!-- ==================== MODALS ==================== -->
+    
+    <!-- Modal: View Data -->
+    <div id="viewModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col transform transition-all">
+            <div class="p-4 border-b flex justify-between items-center bg-blue-50 rounded-t-2xl">
+                <h3 class="text-lg font-bold text-blue-800"><i class="fa-solid fa-circle-info mr-2"></i>รายละเอียดอุบัติการณ์</h3>
+                <button onclick="closeModal('viewModal')" class="text-slate-400 hover:text-red-500 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto" id="viewModalContent">
+                <!-- Content Injected via JS -->
+            </div>
+            <div class="p-4 border-t text-right">
+                <button onclick="closeModal('viewModal')" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded text-slate-700 font-medium">ปิดหน้าต่าง</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: RCA & Assessment (Admin) -->
+    <div id="rcaModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-center justify-center p-2 md:p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center bg-indigo-600 text-white rounded-t-2xl">
+                <h3 class="text-lg font-bold"><i class="fa-solid fa-gears mr-2"></i>Risk Assessment & Root Cause Analysis</h3>
+                <div class="flex gap-2">
+                    <button onclick="exportToWord()" class="bg-white/20 hover:bg-white/30 px-3 py-1 rounded text-sm"><i class="fa-solid fa-file-word mr-1"></i> Export Word</button>
+                    <button onclick="closeModal('rcaModal')" class="hover:text-red-200 text-xl ml-2"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            
+            <div class="flex-grow overflow-y-auto p-4 md:p-6 bg-slate-50" id="exportableContent">
+                <form id="rcaForm" onsubmit="saveRCA(event)" class="space-y-6">
+                    <input type="hidden" id="rca_id">
+                    
+                    <!-- Original Data Summary (Readonly view in RCA) -->
+                    <div class="bg-white p-4 rounded-xl border border-l-4 border-l-blue-500 shadow-sm text-sm mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <p><strong>หัวข้อ:</strong> <span id="lbl_title"></span></p>
+                            <p><strong>ประเภท:</strong> <span id="lbl_errorType"></span> <span class="text-red-500" id="lbl_had"></span></p>
+                            <p><strong>ระดับความรุนแรงเดิม:</strong> <span id="lbl_severity"></span></p>
+                            <p><strong>เหตุการณ์:</strong> <span id="lbl_desc" class="italic text-slate-600"></span></p>
+                        </div>
+                    </div>
+
+                    <!-- AI Analysis Button -->
+                    <div class="bg-gradient-to-r from-purple-100 to-indigo-100 p-4 rounded-xl border border-purple-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div class="flex-1">
+                            <h4 class="font-bold text-purple-800"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>AI Risk Analysis (Gemini)</h4>
+                            <p class="text-xs text-purple-600">วิเคราะห์ RCA ตามหลัก Swiss Cheese Model & ISO 31000</p>
+                        </div>
+                        <button type="button" onclick="analyzeWithAI()" class="btn-3d bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center whitespace-nowrap">
+                            <i class="fa-solid fa-robot mr-2"></i> วิเคราะห์ด้วย AI
+                        </button>
+                    </div>
+
+                    <!-- RCA Form Fields -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">วันที่ทำ RCA</label>
+                            <input type="date" id="rca_date" class="input-style">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">เลขที่อุบัติการณ์ (IR No.)</label>
+                            <input type="text" id="rca_incidentNo" class="input-style" placeholder="เช่น IR-67-001">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">สถานะ</label>
+                            <select id="rca_status" class="input-style bg-amber-50">
+                                <option value="รอแก้ไข">รอแก้ไข / กำลังดำเนินการ</option>
+                                <option value="แก้ไขแล้ว">แก้ไขแล้ว / ปิดความเสี่ยง</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">ผู้เข้าร่วม RCA</label>
+                        <textarea id="rca_participants" rows="2" class="input-style" placeholder="ระบุชื่อหรือตำแหน่งผู้เข้าร่วมประชุม"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium mb-1 text-red-600">สรุปสาเหตุ/ประเด็นปัญหา (Root Cause)</label>
+                            <textarea id="rca_rootCause" rows="12" class="input-style border-red-200 focus:border-red-500" placeholder="วิเคราะห์สาเหตุเชิงระบบ..."></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1 text-green-600">มาตรการแก้ไข/ออกแบบระบบใหม่ (Action Plan)</label>
+                            <textarea id="rca_actionPlan" rows="12" class="input-style border-green-200 focus:border-green-500" placeholder="แนวทางป้องกันไม่ให้เกิดซ้ำ..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Risk Matrix Assessment -->
+                    <div class="bg-white p-4 rounded-xl border shadow-sm">
+                        <h4 class="font-bold border-b pb-2 mb-4">ประเมินระดับความเสี่ยง (Risk Matrix 5x5)</h4>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">โอกาสเกิด (Likelihood) 1-5</label>
+                                    <select id="rca_likelihood" onchange="calculateMatrix()" class="input-style">
+                                        <option value="0">-- เลือก --</option>
+                                        <option value="1">1 - เกิดยากมาก (1 ครั้งใน 5 ปี)</option>
+                                        <option value="2">2 - เกิดยาก (1 ครั้งใน 2-5 ปี)</option>
+                                        <option value="3">3 - ปานกลาง (1 ครั้งต่อปี)</option>
+                                        <option value="4">4 - เกิดบ่อย (เดือนละครั้ง)</option>
+                                        <option value="5">5 - เกิดบ่อยมาก (สัปดาห์ละครั้ง/ทุกวัน)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">ผลกระทบ (Impact) 1-5</label>
+                                    <select id="rca_impact" onchange="calculateMatrix()" class="input-style">
+                                        <option value="0">-- เลือก --</option>
+                                        <option value="1">1 - เล็กน้อย (ไม่ต้องปฐมพยาบาล)</option>
+                                        <option value="2">2 - ปานกลาง (ปฐมพยาบาล)</option>
+                                        <option value="3">3 - รุนแรง (รักษาทางการแพทย์)</option>
+                                        <option value="4">4 - สาหัส (พิการ/นอน รพ. นาน)</option>
+                                        <option value="5">5 - รุนแรงมาก (เสียชีวิต)</option>
+                                    </select>
+                                </div>
+                                <div class="bg-slate-50 p-3 rounded-lg border text-center">
+                                    <p class="text-sm text-slate-500 mb-1">Risk Score (L x I)</p>
+                                    <div class="text-3xl font-bold" id="display_score">-</div>
+                                    <div class="mt-1 font-semibold px-3 py-1 rounded inline-block text-sm" id="display_level">ระบุค่าเพื่อคำนวณ</div>
+                                    <input type="hidden" id="rca_score">
+                                    <input type="hidden" id="rca_level">
+                                </div>
+                            </div>
+
+                            <!-- 5x5 Visual Matrix -->
+                            <div class="overflow-x-auto text-xs font-bold text-center">
+                                <table class="table-fixed w-full max-w-sm mx-auto border-collapse border border-slate-300">
+                                    <tr>
+                                        <td rowspan="6" class="whitespace-nowrap -rotate-90 w-8 border border-slate-300 bg-slate-100">โอกาส (L)</td>
+                                        <td class="border border-slate-300 bg-slate-100 p-1">5</td>
+                                        <td class="border border-slate-300 matrix-cell bg-yellow-300" id="cell-5-1">5</td>
+                                        <td class="border border-slate-300 matrix-cell bg-orange-400 text-white" id="cell-5-2">10</td>
+                                        <td class="border border-slate-300 matrix-cell bg-red-500 text-white" id="cell-5-3">15</td>
+                                        <td class="border border-slate-300 matrix-cell bg-red-600 text-white" id="cell-5-4">20</td>
+                                        <td class="border border-slate-300 matrix-cell bg-red-700 text-white" id="cell-5-5">25</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-slate-300 bg-slate-100 p-1">4</td>
+                                        <td class="border border-slate-300 matrix-cell bg-green-300" id="cell-4-1">4</td>
+                                        <td class="border border-slate-300 matrix-cell bg-yellow-300" id="cell-4-2">8</td>
+                                        <td class="border border-slate-300 matrix-cell bg-orange-400 text-white" id="cell-4-3">12</td>
+                                        <td class="border border-slate-300 matrix-cell bg-red-500 text-white" id="cell-4-4">16</td>
+                                        <td class="border border-slate-300 matrix-cell bg-red-600 text-white" id="cell-4-5">20</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-slate-300 bg-slate-100 p-1">3</td>
+                                        <td class="border border-slate-300 matrix-cell bg-green-300" id="cell-3-1">3</td>
+                                        <td class="border border-slate-300 matrix-cell bg-yellow-300" id="cell-3-2">6</td>
+                                        <td class="border border-slate-300 matrix-cell bg-yellow-400" id="cell-3-3">9</td>
+                                        <td class="border border-slate-300 matrix-cell bg-orange-400 text-white" id="cell-3-4">12</td>
+                                        <td class="border border-slate-300 matrix-cell bg-red-500 text-white" id="cell-3-5">15</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-slate-300 bg-slate-100 p-1">2</td>
+                                        <td class="border border-slate-300 matrix-cell bg-green-200" id="cell-2-1">2</td>
+                                        <td class="border border-slate-300 matrix-cell bg-green-300" id="cell-2-2">4</td>
+                                        <td class="border border-slate-300 matrix-cell bg-yellow-300" id="cell-2-3">6</td>
+                                        <td class="border border-slate-300 matrix-cell bg-yellow-300" id="cell-2-4">8</td>
+                                        <td class="border border-slate-300 matrix-cell bg-orange-400 text-white" id="cell-2-5">10</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-slate-300 bg-slate-100 p-1">1</td>
+                                        <td class="border border-slate-300 matrix-cell bg-green-200" id="cell-1-1">1</td>
+                                        <td class="border border-slate-300 matrix-cell bg-green-200" id="cell-1-2">2</td>
+                                        <td class="border border-slate-300 matrix-cell bg-green-300" id="cell-1-3">3</td>
+                                        <td class="border border-slate-300 matrix-cell bg-green-300" id="cell-1-4">4</td>
+                                        <td class="border border-slate-300 matrix-cell bg-yellow-300" id="cell-1-5">5</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-slate-300 bg-slate-100"></td>
+                                        <td class="border border-slate-300 bg-slate-100 p-1">1</td>
+                                        <td class="border border-slate-300 bg-slate-100 p-1">2</td>
+                                        <td class="border border-slate-300 bg-slate-100 p-1">3</td>
+                                        <td class="border border-slate-300 bg-slate-100 p-1">4</td>
+                                        <td class="border border-slate-300 bg-slate-100 p-1">5</td>
+                                    </tr>
+                                    <tr>
+                                        <td></td><td></td>
+                                        <td colspan="5" class="pt-1">ผลกระทบ (I)</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-center space-x-4 border p-3 rounded-lg bg-white">
+                            <label class="font-medium text-sm">การรายงานผู้บริหาร (IR)</label>
+                            <label class="inline-flex items-center"><input type="radio" name="irStatus" value="รอรายงาน" checked class="mr-1"> รอรายงาน</label>
+                            <label class="inline-flex items-center"><input type="radio" name="irStatus" value="รายงานแล้ว" class="mr-1"> รายงานแล้ว</label>
+                        </div>
+                        <div class="border p-3 rounded-lg bg-white">
+                            <label class="block text-sm font-medium mb-1">นำเข้าที่ประชุม คปภ. (ถ้ามี)</label>
+                            <input type="text" id="rca_committee" class="input-style py-1" placeholder="ระบุครั้งที่ประชุม / วันที่">
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t flex justify-end gap-3">
+                        <button type="button" onclick="closeModal('rcaModal')" class="px-6 py-2 rounded-lg bg-slate-200 text-slate-700 font-medium">ยกเลิก</button>
+                        <button type="submit" class="btn-3d px-6 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium"><i class="fa-solid fa-save mr-2"></i> บันทึกผล RCA</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==================== SCRIPTS ==================== -->
+    <script>
+        // --- Configuration ---
+        // ใส่ URL ที่ได้จากขั้นตอนการ Deploy Google Apps Script ลงไปตรงนี้
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwjjE9JvevxfEXW5aMWvYexeZBeGZ5lKmxkSr7WwM-cnYlLf8skFXiXQqhPslQhwpY/exec'; 
+        const GEMINI_API_KEY = 'AIzaSyCT5xtmSQaAhigVk7flHOnxZsT9Ijz-CBw'; // จาก Prompt
+        const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+        
+        // --- State Management ---
+        let globalData = [];
+        let sortCol = 3, sortAsc = false; // Default sort by date desc
+        let currentPage = { tab2: 1, tab3: 1 };
+
+        // --- Init ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('r_recordDate').valueAsDate = new Date();
+            checkLoginState();
+            fetchData();
+        });
+
+        // --- UI & Navigation ---
+        function switchTab(tabId) {
+            ['tab1', 'tab2', 'tab3'].forEach(id => {
+                document.getElementById(id).classList.add('hidden-tab');
+                document.getElementById('nav-' + id).classList.remove('text-blue-600', 'border-blue-600');
+                document.getElementById('nav-' + id).classList.add('text-slate-500', 'border-transparent');
+            });
+            document.getElementById(tabId).classList.remove('hidden-tab');
+            document.getElementById('nav-' + tabId).classList.add('text-blue-600', 'border-blue-600');
+            document.getElementById('nav-' + tabId).classList.remove('text-slate-500', 'border-transparent');
+            
+            if(tabId === 'tab1') updateDashboard();
+            if(tabId === 'tab3') checkLoginState();
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+        }
+
+        function toggleSourceDetail() {
+            const val = document.getElementById('r_sourceType').value;
+            const div = document.getElementById('sourceDetailDiv');
+            const label = document.getElementById('sourceDetailLabel');
+            if(val) {
+                div.classList.remove('hidden');
+                if (val === 'OPD') label.innerText = 'ระบุห้องตรวจ/คลินิก';
+                else if (val === 'IPD') label.innerText = 'ระบุหอผู้ป่วย (Ward)';
+                else if (val === 'นอกรพ.') label.innerText = 'ระบุสถานที่/แหล่งที่มา';
+                else label.innerText = 'ระบุรายละเอียด';
+            } else {
+                div.classList.add('hidden');
+            }
+        }
+
+        function toggleForm() {
+            const form = document.getElementById('riskForm');
+            const icon = document.getElementById('formToggleIcon');
+            if (form.classList.contains('hidden')) {
+                form.classList.remove('hidden');
+                icon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+            } else {
+                form.classList.add('hidden');
+                icon.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
+        }
+
+        // --- Data Fetching (GAS) ---
+        async function fetchData() {
+            showLoading(true);
+            try {
+                // แก้ไขการเรียกใช้งาน fetch ให้มี ?action=getData ต่อท้าย เพื่อรับ JSON จาก GAS
+                const res = await fetch(GAS_URL + '?action=getData');
+                const result = await res.json();
+                if(result.status === 'success') {
+                    globalData = result.data;
+                    updateDashboard();
+                    renderTable('tab2-tbody', 2);
+                    if(localStorage.getItem('adminLogged') === 'true') {
+                        renderTable('tab3-tbody', 3);
+                        updateAdminDashboard();
+                    }
+                } else {
+                    Swal.fire('ข้อผิดพลาด', 'ไม่สามารถดึงข้อมูลได้: ' + result.message, 'error');
+                }
+            } catch (err) {
+                Swal.fire('ข้อผิดพลาด', 'การเชื่อมต่อขัดข้อง ลองตรวจสอบ URL', 'error');
+                console.error(err);
+            }
+            showLoading(false);
+        }
+
+        // --- Save Data ---
+        async function handleFormSubmit(e, formId) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            const dataObj = Object.fromEntries(formData.entries());
+            
+            // Checkbox handling
+            dataObj.isHAD = form.querySelector('#r_isHAD').checked ? 'HAD' : 'Non-HAD';
+            
+            // ID generation or update
+            const action = dataObj.id ? 'update' : 'save';
+            if(!dataObj.id) dataObj.id = 'R' + Date.now();
+            if(!dataObj.status) dataObj.status = 'รอแก้ไข'; // Default status
+
+            showLoading(true);
+            try {
+                const res = await fetch(GAS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Avoid CORS preflight
+                    body: JSON.stringify({ action: action, data: dataObj })
+                });
+                const result = await res.json();
+                
+                if(result.status === 'success') {
+                    Swal.fire({icon: 'success', title: 'สำเร็จ', text: result.message, timer: 1500});
+                    resetForm(formId);
+                    fetchData(); // Reload data
+                    switchTab('tab1');
+                } else {
+                    Swal.fire('ข้อผิดพลาด', result.message, 'error');
+                }
+            } catch (err) {
+                Swal.fire('ข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+            }
+            showLoading(false);
+        }
+
+        // --- Delete Data ---
+        function deleteRecord(id) {
+            Swal.fire({
+                title: 'ยืนยันการลบ?',
+                text: "ลบแล้วไม่สามารถกู้คืนได้!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'ใช่, ลบเลย!'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    showLoading(true);
+                    try {
+                        const res = await fetch(GAS_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                            body: JSON.stringify({ action: 'delete', data: { id: id } })
+                        });
+                        const rs = await res.json();
+                        if(rs.status === 'success') {
+                            Swal.fire('ลบแล้ว!', '', 'success');
+                            fetchData();
+                        }
+                    } catch (err) {
+                        Swal.fire('Error', 'ลบไม่สำเร็จ', 'error');
+                    }
+                    showLoading(false);
+                }
+            })
+        }
+
+        // --- Image Handling ---
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('imagePreview').src = e.target.result;
+                    document.getElementById('imagePreviewContainer').classList.remove('hidden');
+                    document.getElementById('imagePreviewContainer').classList.add('flex');
+                    document.getElementById('imagePlaceholder').classList.add('hidden');
+                    document.getElementById('r_imageBase64').value = e.target.result;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function resetForm(formId) {
+            document.getElementById(formId).reset();
+            document.getElementById('r_id').value = '';
+            document.getElementById('r_recordDate').valueAsDate = new Date();
+            document.getElementById('imagePreviewContainer').classList.add('hidden');
+            document.getElementById('imagePlaceholder').classList.remove('hidden');
+            document.getElementById('r_imageBase64').value = '';
+            toggleSourceDetail();
+        }
+
+        // --- Tables & Pagination ---
+        function sortTable(colIndex) {
+            sortAsc = !sortAsc;
+            const keys = ['id', 'fiscalYear', 'title', 'incidentDate', 'discoveryDate']; // mapping simplified
+            const key = keys[colIndex] || 'incidentDate';
+            
+            globalData.sort((a, b) => {
+                let valA = a[key] || '';
+                let valB = b[key] || '';
+                if(colIndex === 3) { valA = new Date(valA); valB = new Date(valB); }
+                if(valA < valB) return sortAsc ? -1 : 1;
+                if(valA > valB) return sortAsc ? 1 : -1;
+                return 0;
+            });
+            renderTable('tab2-tbody', 2);
+            if(localStorage.getItem('adminLogged') === 'true') renderTable('tab3-tbody', 3);
+        }
+
+        function getFilteredData(tab) {
+            let data = [...globalData];
+            let searchElem = document.getElementById(`search_tab${tab}`);
+            let search = searchElem ? searchElem.value.toLowerCase() : '';
+            
+            if(search) {
+                data = data.filter(item => 
+                    (item.title && item.title.toLowerCase().includes(search)) || 
+                    (item.incidentDesc && item.incidentDesc.toLowerCase().includes(search)) ||
+                    (item.drugName && item.drugName.toLowerCase().includes(search))
+                );
+            }
+
+            let fYear = document.getElementById(`filter_year_${tab}`) ? document.getElementById(`filter_year_${tab}`).value : '';
+            let fSev = document.getElementById(`filter_severity_${tab}`) ? document.getElementById(`filter_severity_${tab}`).value : '';
+            let fStart = document.getElementById(`filter_start_${tab}`) ? document.getElementById(`filter_start_${tab}`).value : '';
+            let fEnd = document.getElementById(`filter_end_${tab}`) ? document.getElementById(`filter_end_${tab}`).value : '';
+
+            if(fYear) data = data.filter(item => item.fiscalYear == fYear);
+            if(fSev) data = data.filter(item => item.severity == fSev);
+            
+            if(fStart) {
+                let startDate = new Date(fStart).setHours(0,0,0,0);
+                data = data.filter(item => {
+                    if(!item.incidentDate) return false;
+                    return new Date(item.incidentDate).setHours(0,0,0,0) >= startDate;
+                });
+            }
+            if(fEnd) {
+                let endDate = new Date(fEnd).setHours(23,59,59,999);
+                data = data.filter(item => {
+                    if(!item.incidentDate) return false;
+                    return new Date(item.incidentDate).getTime() <= endDate;
+                });
+            }
+
+            return data;
+        }
+
+        function renderTable(tbodyId, tab) {
+            const tbody = document.getElementById(tbodyId);
+            if(!tbody) return;
+            tbody.innerHTML = '';
+            
+            let data = getFilteredData(tab);
+            let limitStr = document.getElementById(`limit_tab${tab}`).value;
+            let limit = limitStr === 'all' ? data.length : parseInt(limitStr);
+            let page = currentPage[`tab${tab}`];
+            let totalPages = Math.ceil(data.length / limit) || 1;
+            
+            if(page > totalPages) { page = 1; currentPage[`tab${tab}`] = 1; }
+            
+            let start = (page - 1) * limit;
+            let end = start + limit;
+            let pageData = data.slice(start, end);
+
+            if(pageData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-slate-500">ไม่มีข้อมูล</td></tr>`;
+            }
+
+            pageData.forEach(row => {
+                let badgeColor = 'bg-slate-100 text-slate-600';
+                if(['H','I'].includes(row.severity)) badgeColor = 'bg-red-100 text-red-700 font-bold border border-red-200';
+                else if(['E','F','G'].includes(row.severity)) badgeColor = 'bg-orange-100 text-orange-700 border border-orange-200';
+                else if(['C','D'].includes(row.severity)) badgeColor = 'bg-yellow-100 text-yellow-700 border border-yellow-200';
+                else if(['A','B'].includes(row.severity)) badgeColor = 'bg-green-100 text-green-700 border border-green-200';
+
+                let riskBadge = '-';
+                if(row.riskLevel) {
+                    let rColor = row.riskLevel === 'Extreme' ? 'bg-red-600' : 
+                                 row.riskLevel === 'High' ? 'bg-orange-500' : 
+                                 row.riskLevel === 'Medium' ? 'bg-yellow-400 text-slate-800' : 'bg-green-500';
+                    riskBadge = `<span class="px-2 py-1 rounded text-white text-xs ${rColor}">${row.riskLevel} (${row.riskScore||''})</span>`;
+                }
+
+                let statusBadge = row.status === 'แก้ไขแล้ว' ? '<span class="text-emerald-600"><i class="fa-solid fa-check-circle"></i> ปิดแล้ว</span>' : '<span class="text-amber-500"><i class="fa-solid fa-clock"></i> รอแก้ไข</span>';
+                let isResolved = row.status === 'แก้ไขแล้ว';
+
+                let dateStr = row.incidentDate ? new Date(row.incidentDate).toLocaleDateString('th-TH') : '';
+
+                let tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                
+                if(tab === 2) {
+                    tr.innerHTML = `
+                        <td class="p-3">${row.fiscalYear || '-'}</td>
+                        <td class="p-3 whitespace-nowrap">${dateStr}</td>
+                        <td class="p-3">
+                            <div class="font-medium text-blue-800 line-clamp-1">${row.title || '-'}</div>
+                            <div class="text-xs text-slate-500">${row.errorType || '-'} ${row.isHAD==='HAD'?'<span class="text-red-500">(HAD)</span>':''}</div>
+                        </td>
+                        <td class="p-3"><span class="px-2 py-1 rounded-full text-xs ${badgeColor}">${row.severity || '-'}</span></td>
+                        <td class="p-3">${riskBadge}</td>
+                        <td class="p-3 text-xs">${statusBadge}</td>
+                        <td class="p-3 text-center whitespace-nowrap">
+                            <button onclick='viewData(${JSON.stringify(row).replace(/'/g, "&#39;")})' class="text-blue-500 hover:text-blue-700 mx-1" title="ดูรายละเอียด"><i class="fa-solid fa-eye"></i></button>
+                            ${isResolved ? 
+                                `<button class="text-slate-300 cursor-not-allowed mx-1" title="ไม่สามารถแก้ไขได้ (ปิดความเสี่ยงแล้ว)"><i class="fa-solid fa-pen"></i></button>
+                                 <button class="text-slate-300 cursor-not-allowed mx-1" title="ไม่สามารถลบได้ (ปิดความเสี่ยงแล้ว)"><i class="fa-solid fa-trash"></i></button>`
+                            :
+                                `<button onclick='editDataTab2(${JSON.stringify(row).replace(/'/g, "&#39;")})' class="text-amber-500 hover:text-amber-700 mx-1" title="แก้ไข"><i class="fa-solid fa-pen"></i></button>
+                                 <button onclick="deleteRecord('${row.id}')" class="text-red-500 hover:text-red-700 mx-1" title="ลบ"><i class="fa-solid fa-trash"></i></button>`
+                            }
+                        </td>
+                    `;
+                } else if (tab === 3) {
+                    tr.innerHTML = `
+                        <td class="p-3 whitespace-nowrap">${dateStr}</td>
+                        <td class="p-3"><div class="font-medium text-indigo-800 line-clamp-1">${row.title || '-'}</div></td>
+                        <td class="p-3 text-xs text-slate-600">${row.errorType || '-'}</td>
+                        <td class="p-3"><span class="px-2 py-1 rounded-full text-xs ${badgeColor}">${row.severity || '-'}</span></td>
+                        <td class="p-3 text-center">${riskBadge}</td>
+                        <td class="p-3 text-xs">${statusBadge}</td>
+                        <td class="p-3 text-center whitespace-nowrap">
+                            <button onclick='openRCA(${JSON.stringify(row).replace(/'/g, "&#39;")})' class="btn-3d bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded text-xs font-semibold"><i class="fa-solid fa-gears"></i> จัดการ RCA</button>
+                        </td>
+                    `;
+                }
+                tbody.appendChild(tr);
+            });
+
+            let pageDiv = document.getElementById(`pagination_tab${tab}`);
+            if(pageDiv) {
+                pageDiv.innerHTML = `
+                    <button onclick="changePage(${tab}, ${page-1})" class="px-2 py-1 border rounded hover:bg-slate-100 ${page===1?'opacity-50 cursor-not-allowed':''}" ${page===1?'disabled':''}><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                    <span class="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded font-medium">${page} / ${totalPages}</span>
+                    <button onclick="changePage(${tab}, ${page+1})" class="px-2 py-1 border rounded hover:bg-slate-100 ${page===totalPages?'opacity-50 cursor-not-allowed':''}" ${page===totalPages?'disabled':''}><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                `;
+            }
+        }
+
+        function changePage(tab, newPage) {
+            currentPage[`tab${tab}`] = newPage;
+            renderTable(`tab${tab}-tbody`, tab);
+        }
+
+        // --- View & Edit Data ---
+        function viewData(row) {
+            let imgHtml = row.imageUrl ? `<img src="${row.imageUrl}" class="mt-2 max-h-48 rounded border shadow-sm">` : '';
+            let rcaHtml = '';
+            if(row.rootCause) {
+                rcaHtml = `
+                    <div class="mt-4 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                        <h4 class="font-bold text-indigo-800 mb-2 border-b border-indigo-200 pb-1"><i class="fa-solid fa-gears"></i> ผลการทำ RCA</h4>
+                        <div class="grid grid-cols-2 gap-2 text-sm mb-2">
+                            <p><strong>Risk Level:</strong> ${row.riskLevel} (${row.riskScore})</p>
+                            <p><strong>สถานะ:</strong> ${row.status}</p>
+                        </div>
+                        <p class="text-sm"><strong>Root Cause:</strong><br>${row.rootCause.replace(/\n/g, '<br>')}</p>
+                        <p class="text-sm mt-2"><strong>Action Plan:</strong><br>${row.actionPlan.replace(/\n/g, '<br>')}</p>
+                    </div>`;
+            }
+
+            document.getElementById('viewModalContent').innerHTML = `
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div><span class="text-slate-500">หัวข้อ:</span> <p class="font-bold text-base">${row.title}</p></div>
+                    <div><span class="text-slate-500">ปีงบประมาณ:</span> <p>${row.fiscalYear}</p></div>
+                    <div><span class="text-slate-500">วันที่เกิดเหตุ:</span> <p>${new Date(row.incidentDate).toLocaleDateString('th-TH')}</p></div>
+                    <div><span class="text-slate-500">วันที่ค้นพบ:</span> <p>${new Date(row.discoveryDate).toLocaleDateString('th-TH')}</p></div>
+                    <div><span class="text-slate-500">แหล่งที่มา:</span> <p>${row.sourceType} ${row.sourceDetail ? '- '+row.sourceDetail : ''}</p></div>
+                    <div><span class="text-slate-500">ประเภท Error:</span> <p>${row.errorType}</p></div>
+                    <div><span class="text-slate-500">ชื่อยา:</span> <p>${row.drugName || '-'} ${row.isHAD==='HAD'?'<span class="text-red-500 font-bold">(HAD)</span>':''}</p></div>
+                    <div><span class="text-slate-500">ระดับความรุนแรง:</span> <p class="font-bold">${row.severity}</p></div>
+                </div>
+                <div class="mt-4">
+                    <span class="text-slate-500 text-sm">รายละเอียดเหตุการณ์:</span>
+                    <p class="bg-slate-50 p-3 rounded border mt-1 text-sm">${row.incidentDesc.replace(/\n/g, '<br>')}</p>
+                </div>
+                <div class="mt-4">
+                    <span class="text-slate-500 text-sm">การจัดการเบื้องต้น:</span>
+                    <p class="bg-slate-50 p-3 rounded border mt-1 text-sm">${row.initialMgmt.replace(/\n/g, '<br>')}</p>
+                </div>
+                ${imgHtml}
+                ${rcaHtml}
+            `;
+            document.getElementById('viewModal').classList.remove('hidden');
+        }
+
+        function editDataTab2(row) {
+            resetForm('riskForm');
+            document.getElementById('riskForm').classList.remove('hidden');
+            document.getElementById('formToggleIcon').classList.replace('fa-chevron-down', 'fa-chevron-up');
+            
+            document.getElementById('r_id').value = row.id;
+            document.getElementById('r_fiscalYear').value = row.fiscalYear;
+            document.getElementById('r_title').value = row.title;
+            
+            if(row.incidentDate) document.getElementById('r_incidentDate').value = new Date(row.incidentDate).toISOString().split('T')[0];
+            if(row.discoveryDate) document.getElementById('r_discoveryDate').value = new Date(row.discoveryDate).toISOString().split('T')[0];
+            if(row.recordDate) document.getElementById('r_recordDate').value = new Date(row.recordDate).toISOString().split('T')[0];
+            
+            document.getElementById('r_sourceType').value = row.sourceType;
+            toggleSourceDetail();
+            if(row.sourceDetail) document.getElementById('r_sourceDetail').value = row.sourceDetail;
+            
+            document.getElementById('r_errorType').value = row.errorType;
+            document.getElementById('r_severity').value = row.severity;
+            document.getElementById('r_drugName').value = row.drugName;
+            document.getElementById('r_isHAD').checked = row.isHAD === 'HAD';
+            document.getElementById('r_incidentDesc').value = row.incidentDesc;
+            document.getElementById('r_initialMgmt').value = row.initialMgmt;
+            
+            if(row.imageUrl && !row.imageUrl.includes('undefined')) {
+                document.getElementById('imagePreview').src = row.imageUrl;
+                document.getElementById('imagePreviewContainer').classList.remove('hidden');
+                document.getElementById('imagePreviewContainer').classList.add('flex');
+                document.getElementById('imagePlaceholder').classList.add('hidden');
+                document.getElementById('r_imageBase64').value = row.imageUrl; 
+            }
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            Swal.fire({title: 'โหมดแก้ไข', text: 'โหลดข้อมูลลงแบบฟอร์มแล้ว', icon: 'info', timer: 1500, showConfirmButton: false});
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        // --- Admin & RCA logic ---
+        function checkAdminPassword() {
+            const pwd = document.getElementById('admin-pwd').value;
+            if(pwd === '6114') {
+                localStorage.setItem('adminLogged', 'true');
+                checkLoginState();
+                Swal.fire({icon: 'success', title: 'เข้าสู่ระบบสำเร็จ', showConfirmButton: false, timer: 1000});
+            } else {
+                Swal.fire('รหัสผ่านผิด', 'กรุณาลองใหม่', 'error');
+            }
+        }
+
+        function checkLoginState() {
+            if(localStorage.getItem('adminLogged') === 'true') {
+                document.getElementById('admin-login').classList.add('hidden');
+                document.getElementById('admin-content').classList.remove('hidden');
+                document.getElementById('admin-badge').classList.remove('hidden');
+                if(globalData.length > 0) {
+                    renderTable('tab3-tbody', 3);
+                    updateAdminDashboard();
+                }
+            } else {
+                document.getElementById('admin-login').classList.remove('hidden');
+                document.getElementById('admin-content').classList.add('hidden');
+                document.getElementById('admin-badge').classList.add('hidden');
+            }
+        }
+
+        function logoutAdmin() {
+            localStorage.removeItem('adminLogged');
+            document.getElementById('admin-pwd').value = '';
+            checkLoginState();
+            switchTab('tab1');
+        }
+
+        let currentRCARow = null;
+        function openRCA(row) {
+            currentRCARow = row;
+            // Set View Data
+            document.getElementById('lbl_title').innerText = row.title;
+            document.getElementById('lbl_errorType').innerText = row.errorType;
+            document.getElementById('lbl_had').innerText = row.isHAD === 'HAD' ? '(High Alert Drug)' : '';
+            document.getElementById('lbl_severity').innerText = row.severity;
+            document.getElementById('lbl_desc').innerText = row.incidentDesc;
+
+            // Set Form Data
+            document.getElementById('rca_id').value = row.id;
+            if(row.rcaDate) document.getElementById('rca_date').value = new Date(row.rcaDate).toISOString().split('T')[0];
+            else document.getElementById('rca_date').valueAsDate = new Date();
+            
+            document.getElementById('rca_incidentNo').value = row.incidentNo || '';
+            document.getElementById('rca_status').value = row.status || 'รอแก้ไข';
+            document.getElementById('rca_participants').value = row.rcaParticipants || '';
+            document.getElementById('rca_rootCause').value = row.rootCause || '';
+            document.getElementById('rca_actionPlan').value = row.actionPlan || '';
+            
+            document.getElementById('rca_likelihood').value = row.likelihood || '0';
+            document.getElementById('rca_impact').value = row.impact || '0';
+            
+            if(row.irStatus) {
+                const radios = document.getElementsByName('irStatus');
+                for(let i=0; i<radios.length; i++) if(radios[i].value === row.irStatus) radios[i].checked = true;
+            }
+            document.getElementById('rca_committee').value = row.committeeReport || '';
+
+            calculateMatrix(); // Update UI
+            document.getElementById('rcaModal').classList.remove('hidden');
+        }
+
+        function calculateMatrix() {
+            const L = parseInt(document.getElementById('rca_likelihood').value) || 0;
+            const I = parseInt(document.getElementById('rca_impact').value) || 0;
+            
+            // Reset cell highlights
+            document.querySelectorAll('.matrix-cell').forEach(cell => {
+                cell.classList.remove('ring-4', 'ring-blue-500', 'scale-110', 'z-20');
+            });
+
+            if (L > 0 && I > 0) {
+                const score = L * I;
+                document.getElementById('rca_score').value = score;
+                document.getElementById('display_score').innerText = score;
+                
+                let level = '', bgColor = '';
+                if(score >= 15) { level = 'Extreme'; bgColor = 'bg-red-600 text-white'; }
+                else if(score >= 8) { level = 'High'; bgColor = 'bg-orange-500 text-white'; }
+                else if(score >= 3) { level = 'Medium'; bgColor = 'bg-yellow-400 text-slate-800'; }
+                else { level = 'Low'; bgColor = 'bg-green-500 text-white'; }
+                
+                document.getElementById('rca_level').value = level;
+                const displayLevel = document.getElementById('display_level');
+                displayLevel.innerText = level;
+                displayLevel.className = `mt-1 font-semibold px-3 py-1 rounded inline-block text-sm shadow ${bgColor}`;
+
+                // Highlight cell
+                const cellId = `cell-${L}-${I}`;
+                const cell = document.getElementById(cellId);
+                if(cell) cell.classList.add('ring-4', 'ring-blue-500', 'scale-110', 'z-20');
+            } else {
+                document.getElementById('display_score').innerText = '-';
+                document.getElementById('display_level').className = 'mt-1 font-semibold px-3 py-1 rounded inline-block text-sm bg-slate-200 text-slate-500';
+                document.getElementById('display_level').innerText = 'ระบุค่าเพื่อคำนวณ';
+                document.getElementById('rca_score').value = '';
+                document.getElementById('rca_level').value = '';
+            }
+        }
+
+        async function saveRCA(e) {
+            e.preventDefault();
+            if(!currentRCARow) return;
+            
+            // Merge RCA data into existing row data
+            let updateData = {...currentRCARow};
+            updateData.rcaDate = document.getElementById('rca_date').value;
+            updateData.incidentNo = document.getElementById('rca_incidentNo').value;
+            updateData.status = document.getElementById('rca_status').value;
+            updateData.rcaParticipants = document.getElementById('rca_participants').value;
+            updateData.rootCause = document.getElementById('rca_rootCause').value;
+            updateData.actionPlan = document.getElementById('rca_actionPlan').value;
+            updateData.likelihood = document.getElementById('rca_likelihood').value;
+            updateData.impact = document.getElementById('rca_impact').value;
+            updateData.riskScore = document.getElementById('rca_score').value;
+            updateData.riskLevel = document.getElementById('rca_level').value;
+            
+            let irStatus = '';
+            const radios = document.getElementsByName('irStatus');
+            for(let i=0; i<radios.length; i++) if(radios[i].checked) irStatus = radios[i].value;
+            updateData.irStatus = irStatus;
+            
+            updateData.committeeReport = document.getElementById('rca_committee').value;
+
+            showLoading(true);
+            try {
+                const res = await fetch(GAS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'update', data: updateData })
+                });
+                const result = await res.json();
+                if(result.status === 'success') {
+                    Swal.fire({icon: 'success', title: 'บันทึก RCA สำเร็จ', timer: 1500});
+                    closeModal('rcaModal');
+                    fetchData(); // Refresh Data
+                }
+            } catch (err) {
+                Swal.fire('Error', 'บันทึกไม่สำเร็จ', 'error');
+            }
+            showLoading(false);
+        }
+
+        // --- Gemini AI Integration ---
+        async function analyzeWithAI() {
+            if(!currentRCARow) return;
+            
+            const prompt = `
+            ในฐานะผู้เชี่ยวชาญด้านบริหารความเสี่ยงทางคลินิก (Clinical Risk Management)
+            กรุณาวิเคราะห์อุบัติการณ์ความเสี่ยงต่อไปนี้
+
+            ข้อมูลเหตุการณ์:
+            - หัวข้อ: ${currentRCARow.title}
+            - ประเภท: ${currentRCARow.errorType} ${currentRCARow.isHAD === 'HAD' ? '(เป็นยา High Alert Drug)' : ''}
+            - ความรุนแรง (Severity): ${currentRCARow.severity}
+            - รายละเอียดเหตุการณ์: ${currentRCARow.incidentDesc}
+            - การจัดการเบื้องต้น: ${currentRCARow.initialMgmt}
+
+            คำสั่ง: ให้วิเคราะห์และตอบกลับในรูปแบบที่กำหนดนี้เท่านั้น (ห้ามมีคำอธิบายเพิ่มเติม ห้ามใช้ Markdown formatting อื่นๆ นอกจากที่กำหนด):
+            Likelihood: [ประเมินโอกาสเกิด เป็นตัวเลข 1, 2, 3, 4 หรือ 5 เท่านั้น]
+            Impact: [ประเมินผลกระทบ เป็นตัวเลข 1, 2, 3, 4 หรือ 5 เท่านั้น]
+            RootCause: 
+            1. สรุปเหตุการณ์ (Event Summary): [สรุปสั้นๆ กระชับ]
+            2. ไทม์ไลน์เหตุการณ์ (Event Timeline): [เรียงลำดับเวลาการเกิดเหตุ]
+            3. สรุปจุดพลิกผัน (Turning Point Summary): [จุดสำคัญที่ทำให้เกิดความผิดพลาด]
+            4. ตารางวิเคราะห์ RCA (Swiss Cheese Model):
+               - Organizational Influences (อิทธิพลองค์กร): [ระบุสาเหตุ]
+               - Unsafe Supervision (การควบคุมดูแล): [ระบุสาเหตุ]
+               - Preconditions (สภาวะก่อนเกิดเหตุ): [ระบุสาเหตุ]
+               - Unsafe Acts (การกระทำที่ไม่ปลอดภัย): [ระบุสาเหตุ]
+            ActionPlan: [เสนอมาตรการและแนวทางแก้ไข/การปรับปรุงหรือออกแบบระบบงานใหม่ อย่างเป็นรูปธรรม]
+            `;
+
+            // Step 1: Preparing
+            Swal.fire({
+                title: 'ขั้นตอนที่ 1/3',
+                html: 'กำลังเตรียมข้อมูลสำหรับ AI...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            try {
+                // Step 2: Fetching
+                Swal.update({
+                    title: 'ขั้นตอนที่ 2/3',
+                    html: '<span class="text-blue-600 font-semibold">AI กำลังวิเคราะห์ข้อมูล</span><br><span class="text-sm text-slate-500">ประมวลผลด้วย Gemini 2.5 Flash-Lite<br>(ประเมิน Risk Matrix, ไทม์ไลน์, RCA และ Action Plan)</span>'
+                });
+
+                const response = await fetch(GEMINI_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { temperature: 0.1 }
+                    })
+                });
+
+                // Step 3: Parsing
+                Swal.update({
+                    title: 'ขั้นตอนที่ 3/3',
+                    html: '<span class="text-emerald-600 font-semibold">กำลังนำผลลัพธ์ใส่ลงในแบบฟอร์ม...</span>'
+                });
+
+                const data = await response.json();
+                
+                if(data.candidates && data.candidates[0] && data.candidates[0].content) {
+                    let text = data.candidates[0].content.parts[0].text;
+                    
+                    text = text.replace(/\*\*/g, ''); // Clean markdown
+
+                    let likelihoodMatch = text.match(/Likelihood:\s*([1-5])/i);
+                    let impactMatch = text.match(/Impact:\s*([1-5])/i);
+                    let rcMatch = text.match(/RootCause:([\s\S]*?)ActionPlan:/i);
+                    let apMatch = text.match(/ActionPlan:([\s\S]*)/i);
+
+                    let l_val = likelihoodMatch ? likelihoodMatch[1] : null;
+                    let i_val = impactMatch ? impactMatch[1] : null;
+                    let rootCause = rcMatch ? rcMatch[1].trim() : "";
+                    let actionPlan = apMatch ? apMatch[1].trim() : "";
+
+                    if(!rcMatch || !apMatch) {
+                        let parts = text.split(/ActionPlan:|มาตรการแก้ไข|Action Plan/i);
+                        rootCause = parts[0].replace(/RootCause:|สาเหตุเชิงระบบ|Root Cause/i, '').trim();
+                        actionPlan = parts[1] ? parts[1].trim() : '';
+                    }
+
+                    if(l_val) document.getElementById('rca_likelihood').value = l_val;
+                    if(i_val) document.getElementById('rca_impact').value = i_val;
+                    document.getElementById('rca_rootCause').value = rootCause;
+                    document.getElementById('rca_actionPlan').value = actionPlan;
+
+                    if(l_val || i_val) calculateMatrix();
+                    
+                    Swal.fire({
+                        icon: 'success', 
+                        title: 'วิเคราะห์เสร็จสิ้น!', 
+                        text: 'AI ประเมิน Risk Matrix, RCA และ Action Plan เรียบร้อยแล้ว', 
+                        confirmButtonText: 'รับทราบ',
+                        confirmButtonColor: '#4f46e5'
+                    });
+                } else {
+                    throw new Error("Invalid format from AI");
+                }
+            } catch (error) {
+                console.error(error);
+                Swal.fire('ข้อผิดพลาด', 'กระบวนการ AI ขัดข้อง ไม่สามารถวิเคราะห์ได้ในขณะนี้', 'error');
+            }
+        }
+
+        // --- Export to Word ---
+        function exportToWord() {
+            if(!currentRCARow) return;
+            
+            const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' "+
+                 "xmlns:w='urn:schemas-microsoft-com:office:word' "+
+                 "xmlns='http://www.w3.org/TR/REC-html40'>"+
+                 "<head><meta charset='utf-8'><title>Export HTML to Word</title>"+
+                 "<style>body { font-family: 'Sarabun', 'TH SarabunPSK', sans-serif; font-size: 16pt; } table { border-collapse: collapse; width: 100%; } th, td { border: 1px solid black; padding: 5px; }</style>"+
+                 "</head><body>";
+            
+            const footer = "</body></html>";
+            
+            const content = `
+                <h2 style="text-align:center;">รายงานการทบทวนอุบัติการณ์ความเสี่ยง (RCA)</h2>
+                <p><strong>เลขที่อุบัติการณ์:</strong> ${document.getElementById('rca_incidentNo').value || '-'}</p>
+                <p><strong>วันที่ทำ RCA:</strong> ${document.getElementById('rca_date').value || '-'}</p>
+                <p><strong>หัวข้อเหตุการณ์:</strong> ${currentRCARow.title}</p>
+                <p><strong>ประเภท:</strong> ${currentRCARow.errorType} ${currentRCARow.isHAD === 'HAD' ? '(HAD)' : ''}</p>
+                <p><strong>ระดับความรุนแรงเดิม:</strong> ${currentRCARow.severity}</p>
+                <hr>
+                <h3>1. รายละเอียดเหตุการณ์</h3>
+                <p>${currentRCARow.incidentDesc}</p>
+                <h3>2. การจัดการเบื้องต้น</h3>
+                <p>${currentRCARow.initialMgmt}</p>
+                <h3>3. สรุปสาเหตุเชิงระบบ (Root Cause)</h3>
+                <p>${document.getElementById('rca_rootCause').value.replace(/\n/g, '<br>')}</p>
+                <h3>4. มาตรการแก้ไขและออกแบบระบบงานใหม่ (Action Plan)</h3>
+                <p>${document.getElementById('rca_actionPlan').value.replace(/\n/g, '<br>')}</p>
+                <hr>
+                <p><strong>ประเมินความเสี่ยง:</strong> โอกาส ${document.getElementById('rca_likelihood').value} x ผลกระทบ ${document.getElementById('rca_impact').value} = คะแนน <strong>${document.getElementById('rca_score').value}</strong> (ระดับ <strong>${document.getElementById('rca_level').value}</strong>)</p>
+                <p><strong>ผู้เข้าร่วม RCA:</strong> ${document.getElementById('rca_participants').value.replace(/\n/g, '<br>')}</p>
+            `;
+
+            const sourceHTML = header + content + footer;
+            
+            const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+            const fileDownload = document.createElement("a");
+            document.body.appendChild(fileDownload);
+            fileDownload.href = source;
+            fileDownload.download = `RCA_${currentRCARow.title}.doc`;
+            fileDownload.click();
+            document.body.removeChild(fileDownload);
+        }
+
+        // --- Charts & Dashboard Update ---
+        let charts = {};
+        
+        function updateAdminDashboard() {
+            let data = getFilteredData(3);
+            document.getElementById('admin-total').innerText = data.length;
+            const resolved = data.filter(i => i.status === 'แก้ไขแล้ว').length;
+            document.getElementById('admin-resolved').innerText = resolved;
+            document.getElementById('admin-pending').innerText = data.length - resolved;
+        }
+
+        function updateDashboard() {
+            let data = getFilteredData(1);
+
+            document.getElementById('dash-total').innerText = data.length;
+            const resolved = data.filter(i => i.status === 'แก้ไขแล้ว').length;
+            document.getElementById('dash-resolved').innerText = resolved;
+            document.getElementById('dash-pending').innerText = data.length - resolved;
+
+            let typeCount = {}, sevCount = {}, riskCount = {}, yearCount = {};
+            
+            data.forEach(item => {
+                if(item.errorType) typeCount[item.errorType] = (typeCount[item.errorType] || 0) + 1;
+                if(item.severity) sevCount[item.severity] = (sevCount[item.severity] || 0) + 1;
+                
+                let rl = item.riskLevel || 'ยังไม่ประเมิน';
+                riskCount[rl] = (riskCount[rl] || 0) + 1;
+                
+                if(item.fiscalYear) yearCount[item.fiscalYear] = (yearCount[item.fiscalYear] || 0) + 1;
+            });
+
+            // Top 5
+            let top5 = [...data].filter(i => i.riskScore).sort((a,b) => b.riskScore - a.riskScore).slice(0,5);
+            let top5Body = document.getElementById('top5-table-body');
+            top5Body.innerHTML = '';
+            if(top5.length === 0) top5Body.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-slate-500">ยังไม่มีข้อมูลการประเมิน Risk Score</td></tr>';
+            
+            top5.forEach(item => {
+                let rColor = item.riskLevel === 'Extreme' ? 'bg-red-600' : item.riskLevel === 'High' ? 'bg-orange-500' : item.riskLevel === 'Medium' ? 'bg-yellow-400 text-slate-800' : 'bg-green-500';
+                top5Body.innerHTML += `
+                    <tr class="border-b hover:bg-slate-50">
+                        <td class="p-3">${new Date(item.incidentDate).toLocaleDateString('th-TH')}</td>
+                        <td class="p-3 font-medium text-slate-800">${item.title}</td>
+                        <td class="p-3 text-xs text-slate-500">${item.errorType}</td>
+                        <td class="p-3 text-center font-bold">${item.riskScore}</td>
+                        <td class="p-3 text-center"><span class="px-2 py-1 rounded text-white text-xs ${rColor}">${item.riskLevel}</span></td>
+                    </tr>
+                `;
+            });
+
+            // Pivot Table Logic
+            let pivotData = {};
+            const severities = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+            
+            data.forEach(item => {
+                if(!item.errorType || !item.severity) return;
+                let type = item.errorType;
+                let sev = item.severity;
+                
+                if (!pivotData[type]) {
+                    pivotData[type] = { A:0, B:0, C:0, D:0, E:0, F:0, G:0, H:0, I:0, total: 0 };
+                }
+                if (pivotData[type][sev] !== undefined) {
+                    pivotData[type][sev]++;
+                    pivotData[type].total++;
+                }
+            });
+
+            let pivotHtml = '';
+            let colTotals = { A:0, B:0, C:0, D:0, E:0, F:0, G:0, H:0, I:0, total: 0 };
+            
+            let sortedTypes = Object.keys(pivotData).sort((a,b) => pivotData[b].total - pivotData[a].total);
+            
+            if(sortedTypes.length === 0) {
+                 pivotHtml = '<tr><td colspan="11" class="p-4 text-center text-slate-500">ไม่มีข้อมูล</td></tr>';
+            } else {
+                sortedTypes.forEach(type => {
+                    pivotHtml += `<tr class="border-b hover:bg-slate-50 transition">
+                        <td class="p-3 text-left font-medium text-slate-700 whitespace-nowrap">${type}</td>`;
+                    severities.forEach(sev => {
+                        let count = pivotData[type][sev];
+                        colTotals[sev] += count;
+                        pivotHtml += `<td class="p-3 ${count > 0 ? 'text-blue-600 font-bold' : 'text-slate-300'}">${count > 0 ? count : '-'}</td>`;
+                    });
+                    colTotals.total += pivotData[type].total;
+                    pivotHtml += `<td class="p-3 font-bold bg-slate-50">${pivotData[type].total}</td></tr>`;
+                });
+                
+                pivotHtml += `<tr class="bg-blue-50 text-blue-800 font-bold border-t-2 border-blue-200">
+                    <td class="p-3 text-left">รวมทั้งหมด</td>`;
+                severities.forEach(sev => {
+                    pivotHtml += `<td class="p-3">${colTotals[sev]}</td>`;
+                });
+                pivotHtml += `<td class="p-3 bg-blue-100">${colTotals.total}</td></tr>`;
+            }
+            document.getElementById('pivot-table-body').innerHTML = pivotHtml;
+
+            // Render Charts
+            renderChart('chartErrorType', 'bar', Object.keys(typeCount), Object.values(typeCount), 'จำนวน (ครั้ง)', ['#3b82f6','#60a5fa','#93c5fd','#bfdbfe']);
+            renderChart('chartSeverity', 'pie', Object.keys(sevCount), Object.values(sevCount), '', ['#dcfce7','#bbf7d0','#fef08a','#fde047','#fed7aa','#fdba74','#fca5a5','#f87171','#ef4444','#b91c1c']);
+            
+            const rColors = {'Extreme':'#dc2626', 'High':'#f97316', 'Medium':'#facc15', 'Low':'#22c55e', 'ยังไม่ประเมิน':'#cbd5e1'};
+            let rBg = Object.keys(riskCount).map(k => rColors[k]);
+            renderChart('chartRiskLevel', 'doughnut', Object.keys(riskCount), Object.values(riskCount), '', rBg);
+            
+            renderChart('chartYear', 'line', Object.keys(yearCount).sort(), Object.keys(yearCount).sort().map(k=>yearCount[k]), 'จำนวนอุบัติการณ์', '#4f46e5');
+        }
+
+        function renderChart(canvasId, type, labels, data, labelDesc, colors) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if(charts[canvasId]) charts[canvasId].destroy();
+            
+            let dataset = {
+                label: labelDesc,
+                data: data,
+                backgroundColor: colors,
+                borderColor: type === 'line' ? colors : '#fff',
+                borderWidth: 1,
+                tension: 0.3,
+                fill: type === 'line' ? {target: 'origin', above: 'rgba(79, 70, 229, 0.1)'} : false
+            };
+
+            charts[canvasId] = new Chart(ctx, {
+                type: type,
+                data: { labels: labels, datasets: [dataset] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: type === 'pie' || type === 'doughnut', position: 'right' }
+                    },
+                    scales: (type === 'bar' || type === 'line') ? { y: { beginAtZero: true, ticks: { stepSize: 1 } } } : {}
+                }
+            });
+        }
+    </script>
+</body>
+</html>
+
+
