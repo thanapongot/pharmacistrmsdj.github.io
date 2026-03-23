@@ -598,8 +598,8 @@
                     <!-- AI Analysis Button -->
                     <div class="bg-gradient-to-r from-purple-100 to-indigo-100 p-4 rounded-xl border border-purple-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
                         <div class="flex-1">
-                            <h4 class="font-bold text-purple-800"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>AI Risk Analysis (Gemini)</h4>
-                            <p class="text-xs text-purple-600">วิเคราะห์ RCA ตามหลัก Swiss Cheese Model & ISO 31000</p>
+                            <h4 class="font-bold text-purple-800"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>AI Risk Analysis (Gemini / OpenAI)</h4>
+                            <p class="text-xs text-purple-600">วิเคราะห์ RCA ตามหลัก Risk Management (แก้ไขให้รองรับ JSON Format แล้ว)</p>
                         </div>
                         <button type="button" onclick="analyzeWithAI()" class="btn-3d bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center whitespace-nowrap">
                             <i class="fa-solid fa-robot mr-2"></i> วิเคราะห์ด้วย AI
@@ -764,19 +764,24 @@
     <!-- ==================== SCRIPTS ==================== -->
     <script>
         // --- Configuration ---
-        // ใส่ URL ที่ได้จากขั้นตอนการ Deploy Google Apps Script ลงไปตรงนี้
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbwjjE9JvevxfEXW5aMWvYexeZBeGZ5lKmxkSr7WwM-cnYlLf8skFXiXQqhPslQhwpY/exec'; 
+        
+        // ⚠️ โค้ดนี้ไม่ปลอดภัยสำหรับการใช้งานบน Production (หากคนอื่นเห็นซอร์สโค้ด จะขโมย Key ไปใช้ได้)
+        // ⚠️ แนะนำให้ย้ายการเรียก OpenAI ไปไว้ใน Google Apps Script (GAS) แทน
         const OPENAI_API_KEY = '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';
         const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
         
         // --- State Management ---
         let globalData = [];
-        let sortCol = 3, sortAsc = false; // Default sort by date desc
+        let sortCol = 3, sortAsc = false;
         let currentPage = { tab2: 1, tab3: 1 };
 
         // --- Init ---
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('r_recordDate').valueAsDate = new Date();
+            // Fix timezone issue by using local ISO string split
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('r_recordDate').value = today;
+            
             checkLoginState();
             fetchData();
         });
@@ -831,7 +836,6 @@
         async function fetchData() {
             showLoading(true);
             try {
-                // แก้ไขการเรียกใช้งาน fetch ให้มี ?action=getData ต่อท้าย เพื่อรับ JSON จาก GAS
                 const res = await fetch(GAS_URL + '?action=getData');
                 const result = await res.json();
                 if(result.status === 'success') {
@@ -859,19 +863,17 @@
             const formData = new FormData(form);
             const dataObj = Object.fromEntries(formData.entries());
             
-            // Checkbox handling
             dataObj.isHAD = form.querySelector('#r_isHAD').checked ? 'HAD' : 'Non-HAD';
             
-            // ID generation or update
             const action = dataObj.id ? 'update' : 'save';
             if(!dataObj.id) dataObj.id = 'R' + Date.now();
-            if(!dataObj.status) dataObj.status = 'รอแก้ไข'; // Default status
+            if(!dataObj.status) dataObj.status = 'รอแก้ไข';
 
             showLoading(true);
             try {
                 const res = await fetch(GAS_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Avoid CORS preflight
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({ action: action, data: dataObj })
                 });
                 const result = await res.json();
@@ -879,7 +881,7 @@
                 if(result.status === 'success') {
                     Swal.fire({icon: 'success', title: 'สำเร็จ', text: result.message, timer: 1500});
                     resetForm(formId);
-                    fetchData(); // Reload data
+                    fetchData();
                     switchTab('tab1');
                 } else {
                     Swal.fire('ข้อผิดพลาด', result.message, 'error');
@@ -940,7 +942,10 @@
         function resetForm(formId) {
             document.getElementById(formId).reset();
             document.getElementById('r_id').value = '';
-            document.getElementById('r_recordDate').valueAsDate = new Date();
+            
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('r_recordDate').value = today;
+            
             document.getElementById('imagePreviewContainer').classList.add('hidden');
             document.getElementById('imagePlaceholder').classList.remove('hidden');
             document.getElementById('r_imageBase64').value = '';
@@ -950,7 +955,7 @@
         // --- Tables & Pagination ---
         function sortTable(colIndex) {
             sortAsc = !sortAsc;
-            const keys = ['id', 'fiscalYear', 'title', 'incidentDate', 'discoveryDate']; // mapping simplified
+            const keys = ['id', 'fiscalYear', 'title', 'incidentDate', 'discoveryDate'];
             const key = keys[colIndex] || 'incidentDate';
             
             globalData.sort((a, b) => {
@@ -1231,7 +1236,7 @@
             // Set Form Data
             document.getElementById('rca_id').value = row.id;
             if(row.rcaDate) document.getElementById('rca_date').value = new Date(row.rcaDate).toISOString().split('T')[0];
-            else document.getElementById('rca_date').valueAsDate = new Date();
+            else document.getElementById('rca_date').value = new Date().toISOString().split('T')[0];
             
             document.getElementById('rca_incidentNo').value = row.incidentNo || '';
             document.getElementById('rca_status').value = row.status || 'รอแก้ไข';
@@ -1333,120 +1338,102 @@
             showLoading(false);
         }
 
-async function analyzeWithAI() {
-    if(!currentRCARow) return;
-    
-    const prompt = `
-    ในฐานะผู้เชี่ยวชาญด้านบริหารความเสี่ยงทางคลินิก (Clinical Risk Management)
-    กรุณาวิเคราะห์อุบัติการณ์ความเสี่ยงต่อไปนี้
+        // ==================== [ส่วนที่แก้ไขเรื่อง AI JSON Mode] ====================
+        async function analyzeWithAI() {
+            if(!currentRCARow) return;
+            
+            // เปลี่ยน Prompt สั่งให้ตอบเป็น JSON Object เพื่อความแม่นยำ
+            const prompt = `
+            ในฐานะผู้เชี่ยวชาญด้านบริหารความเสี่ยงทางคลินิก (Clinical Risk Management)
+            กรุณาวิเคราะห์อุบัติการณ์ความเสี่ยงต่อไปนี้
 
-    ข้อมูลเหตุการณ์:
-    - หัวข้อ: ${currentRCARow.title}
-    - ประเภท: ${currentRCARow.errorType} ${currentRCARow.isHAD === 'HAD' ? '(เป็นยา High Alert Drug)' : ''}
-    - ความรุนแรง (Severity): ${currentRCARow.severity}
-    - รายละเอียดเหตุการณ์: ${currentRCARow.incidentDesc}
-    - การจัดการเบื้องต้น: ${currentRCARow.initialMgmt}
+            ข้อมูลเหตุการณ์:
+            - หัวข้อ: ${currentRCARow.title}
+            - ประเภท: ${currentRCARow.errorType} ${currentRCARow.isHAD === 'HAD' ? '(เป็นยา High Alert Drug)' : ''}
+            - ความรุนแรง (Severity): ${currentRCARow.severity}
+            - รายละเอียดเหตุการณ์: ${currentRCARow.incidentDesc}
+            - การจัดการเบื้องต้น: ${currentRCARow.initialMgmt}
 
-    คำสั่ง: ให้วิเคราะห์และตอบกลับในรูปแบบนี้เท่านั้น:
-    Likelihood: [1-5]
-    Impact: [1-5]
-    RootCause:
-    1. สรุปเหตุการณ์ (Event Summary): ...
-    2. ไทม์ไลน์เหตุการณ์ (Event Timeline): ...
-    3. สรุปจุดพลิกผัน (Turning Point Summary): ...
-    4. ตารางวิเคราะห์ RCA:
-       - Organizational Influences: ...
-       - Unsafe Supervision: ...
-       - Preconditions: ...
-       - Unsafe Acts: ...
-    ActionPlan: ...
-    `;
-
-    Swal.fire({
-        title: 'ขั้นตอนที่ 1/3',
-        html: 'กำลังเตรียมข้อมูลสำหรับ AI...',
-        allowOutsideClick: false,
-        didOpen: () => { Swal.showLoading(); }
-    });
-
-    try {
-        Swal.update({
-            title: 'ขั้นตอนที่ 2/3',
-            html: '<span class="text-blue-600 font-semibold">AI กำลังวิเคราะห์ข้อมูล</span><br><span class="text-sm text-slate-500">ประมวลผลด้วย OpenAI</span>'
-        });
-
-        const response = await fetch(OPENAI_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + OPENAI_API_KEY
-            },
-            body: JSON.stringify({
-                model: "gpt-4o-mini",
-                messages: [
-                    {
-                        role: "system",
-                        content: "คุณเป็นผู้เชี่ยวชาญด้าน Clinical Risk Management และ RCA"
-                    },
-                    {
-                        role: "user",
-                        content: prompt
-                    }
-                ],
-                temperature: 0.1
-            })
-        });
-
-        Swal.update({
-            title: 'ขั้นตอนที่ 3/3',
-            html: '<span class="text-emerald-600 font-semibold">กำลังนำผลลัพธ์ใส่ลงในแบบฟอร์ม...</span>'
-        });
-
-        const data = await response.json();
-
-        if(data.choices && data.choices[0]) {
-            let text = data.choices[0].message.content;
-
-            text = text.replace(/\*\*/g, '');
-
-            let likelihoodMatch = text.match(/Likelihood:\s*([1-5])/i);
-            let impactMatch = text.match(/Impact:\s*([1-5])/i);
-            let rcMatch = text.match(/RootCause:([\s\S]*?)ActionPlan:/i);
-            let apMatch = text.match(/ActionPlan:([\s\S]*)/i);
-
-            let l_val = likelihoodMatch ? likelihoodMatch[1] : null;
-            let i_val = impactMatch ? impactMatch[1] : null;
-            let rootCause = rcMatch ? rcMatch[1].trim() : "";
-            let actionPlan = apMatch ? apMatch[1].trim() : "";
-
-            if(!rcMatch || !apMatch) {
-                let parts = text.split(/ActionPlan:/i);
-                rootCause = parts[0].replace(/RootCause:/i, '').trim();
-                actionPlan = parts[1] ? parts[1].trim() : '';
+            คำสั่ง: ให้วิเคราะห์และตอบกลับในรูปแบบ JSON Format เท่านั้น โดยต้องมี Structure ดังนี้ (ไม่ต้องมี markdown หรือ text อื่น):
+            {
+                "Likelihood": ตัวเลข (1-5),
+                "Impact": ตัวเลข (1-5),
+                "RootCause": "สรุปเหตุการณ์, ไทม์ไลน์, จุดพลิกผัน และตารางวิเคราะห์ (Organizational Influences, Unsafe Supervision, Preconditions, Unsafe Acts) รวมอยู่ในฟิลด์นี้",
+                "ActionPlan": "มาตรการแก้ไขที่ชัดเจน"
             }
-
-            if(l_val) document.getElementById('rca_likelihood').value = l_val;
-            if(i_val) document.getElementById('rca_impact').value = i_val;
-            document.getElementById('rca_rootCause').value = rootCause;
-            document.getElementById('rca_actionPlan').value = actionPlan;
-
-            if(l_val || i_val) calculateMatrix();
+            `;
 
             Swal.fire({
-                icon: 'success',
-                title: 'วิเคราะห์เสร็จสิ้น!',
-                text: 'AI วิเคราะห์ Risk Matrix และ RCA เรียบร้อยแล้ว',
-                confirmButtonText: 'รับทราบ'
+                title: 'ขั้นตอนที่ 1/3',
+                html: 'กำลังเตรียมข้อมูลสำหรับ AI...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
             });
-        } else {
-            throw new Error("Invalid format from OpenAI");
-        }
 
-    } catch (error) {
-        console.error(error);
-        Swal.fire('ข้อผิดพลาด', 'ไม่สามารถวิเคราะห์ได้ในขณะนี้', 'error');
-    }
-}
+            try {
+                Swal.update({
+                    title: 'ขั้นตอนที่ 2/3',
+                    html: '<span class="text-blue-600 font-semibold">AI กำลังวิเคราะห์ข้อมูล</span><br><span class="text-sm text-slate-500">ประมวลผลด้วย OpenAI JSON Mode</span>'
+                });
+
+                const response = await fetch(OPENAI_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + OPENAI_API_KEY
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini",
+                        response_format: { type: "json_object" }, // บังคับให้ตอบเป็น JSON
+                        messages: [
+                            {
+                                role: "system",
+                                content: "คุณเป็นผู้เชี่ยวชาญด้าน Clinical Risk Management และ RCA จงตอบเป็น JSON object เสมอ"
+                            },
+                            {
+                                role: "user",
+                                content: prompt
+                            }
+                        ],
+                        temperature: 0.1
+                    })
+                });
+
+                Swal.update({
+                    title: 'ขั้นตอนที่ 3/3',
+                    html: '<span class="text-emerald-600 font-semibold">กำลังนำผลลัพธ์ใส่ลงในแบบฟอร์ม...</span>'
+                });
+
+                const data = await response.json();
+
+                if(data.choices && data.choices[0]) {
+                    // การดึงข้อมูล JSON ทำให้ไม่ต้องปวดหัวกับการตัดคำ (Regex)
+                    const resultJson = JSON.parse(data.choices[0].message.content);
+
+                    if(resultJson.Likelihood) document.getElementById('rca_likelihood').value = resultJson.Likelihood;
+                    if(resultJson.Impact) document.getElementById('rca_impact').value = resultJson.Impact;
+                    if(resultJson.RootCause) document.getElementById('rca_rootCause').value = resultJson.RootCause;
+                    if(resultJson.ActionPlan) document.getElementById('rca_actionPlan').value = resultJson.ActionPlan;
+
+                    // คำนวณ Matrix ทันที
+                    calculateMatrix();
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'วิเคราะห์เสร็จสิ้น!',
+                        text: 'AI วิเคราะห์ Risk Matrix และ RCA ด้วย JSON Mode เรียบร้อยแล้ว',
+                        confirmButtonText: 'รับทราบ'
+                    });
+                } else {
+                    throw new Error("Invalid response format from OpenAI");
+                }
+
+            } catch (error) {
+                console.error(error);
+                Swal.fire('ข้อผิดพลาด', 'ไม่สามารถวิเคราะห์ได้ในขณะนี้: ' + error.message, 'error');
+            }
+        }
+        // =========================================================================
 
         // --- Export to Word ---
         function exportToWord() {
