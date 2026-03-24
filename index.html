@@ -766,9 +766,9 @@
         // --- Configuration ---
         // ใส่ URL ที่ได้จากขั้นตอนการ Deploy Google Apps Script ลงไปตรงนี้
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbxL7mBFja8--POdTZIHNoEx1f8npIKHiUYTzoutKUWACZxdzj9ETEi-Bi18fByzuCh-/exec'; 
-        const GEMINI_API_KEY = 'AIzaSyDOYEEwWYDeiMMrH7bkrEgfEsefd4ZvZyU'; // จาก Prompt
+        const GEMINI_API_KEY = 'AIzaSyDiWVgisX9y_X2Z5Zplm1a3-Pyi4fyO9tA'; // จาก Prompt
         const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
+        
         // --- State Management ---
         let globalData = [];
         let sortCol = 3, sortAsc = false; // Default sort by date desc
@@ -1334,8 +1334,6 @@
         }
 
         // --- Gemini AI Integration ---
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
 async function analyzeWithAI() {
     if (!currentRCARow) return;
 
