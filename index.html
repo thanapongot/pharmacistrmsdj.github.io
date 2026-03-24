@@ -768,7 +768,7 @@
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbxL7mBFja8--POdTZIHNoEx1f8npIKHiUYTzoutKUWACZxdzj9ETEi-Bi18fByzuCh-/exec'; 
         const GEMINI_API_KEY = 'AIzaSyDOYEEwWYDeiMMrH7bkrEgfEsefd4ZvZyU'; // จาก Prompt
         const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        
+
         // --- State Management ---
         let globalData = [];
         let sortCol = 3, sortAsc = false; // Default sort by date desc
@@ -1334,110 +1334,120 @@
         }
 
         // --- Gemini AI Integration ---
-        async function analyzeWithAI() {
-            if(!currentRCARow) return;
-            
-            const prompt = `
-            ในฐานะผู้เชี่ยวชาญด้านบริหารความเสี่ยงทางคลินิก (Clinical Risk Management)
-            กรุณาวิเคราะห์อุบัติการณ์ความเสี่ยงต่อไปนี้
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-            ข้อมูลเหตุการณ์:
-            - หัวข้อ: ${currentRCARow.title}
-            - ประเภท: ${currentRCARow.errorType} ${currentRCARow.isHAD === 'HAD' ? '(เป็นยา High Alert Drug)' : ''}
-            - ความรุนแรง (Severity): ${currentRCARow.severity}
-            - รายละเอียดเหตุการณ์: ${currentRCARow.incidentDesc}
-            - การจัดการเบื้องต้น: ${currentRCARow.initialMgmt}
+async function analyzeWithAI() {
+    if (!currentRCARow) return;
 
-            คำสั่ง: ให้วิเคราะห์และตอบกลับในรูปแบบที่กำหนดนี้เท่านั้น (ห้ามมีคำอธิบายเพิ่มเติม ห้ามใช้ Markdown formatting อื่นๆ นอกจากที่กำหนด):
-            Likelihood: [ประเมินโอกาสเกิด เป็นตัวเลข 1, 2, 3, 4 หรือ 5 เท่านั้น]
-            Impact: [ประเมินผลกระทบ เป็นตัวเลข 1, 2, 3, 4 หรือ 5 เท่านั้น]
-            RootCause: 
-            1. สรุปเหตุการณ์ (Event Summary): [สรุปสั้นๆ กระชับ]
-            2. ไทม์ไลน์เหตุการณ์ (Event Timeline): [เรียงลำดับเวลาการเกิดเหตุ]
-            3. สรุปจุดพลิกผัน (Turning Point Summary): [จุดสำคัญที่ทำให้เกิดความผิดพลาด]
-            4. ตารางวิเคราะห์ RCA (Swiss Cheese Model):
-               - Organizational Influences (อิทธิพลองค์กร): [ระบุสาเหตุ]
-               - Unsafe Supervision (การควบคุมดูแล): [ระบุสาเหตุ]
-               - Preconditions (สภาวะก่อนเกิดเหตุ): [ระบุสาเหตุ]
-               - Unsafe Acts (การกระทำที่ไม่ปลอดภัย): [ระบุสาเหตุ]
-            ActionPlan: [เสนอมาตรการและแนวทางแก้ไข/การปรับปรุงหรือออกแบบระบบงานใหม่ อย่างเป็นรูปธรรม]
-            `;
+    const prompt = `
+    ในฐานะผู้เชี่ยวชาญด้านบริหารความเสี่ยงทางคลินิก (Clinical Risk Management)
+    กรุณาวิเคราะห์อุบัติการณ์ความเสี่ยงต่อไปนี้
 
-            // Step 1: Preparing
-            Swal.fire({
-                title: 'ขั้นตอนที่ 1/3',
-                html: 'กำลังเตรียมข้อมูลสำหรับ AI...',
-                allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
-            });
+    ข้อมูลเหตุการณ์:
+    - หัวข้อ: ${currentRCARow.title}
+    - ประเภท: ${currentRCARow.errorType} ${currentRCARow.isHAD === 'HAD' ? '(เป็นยา High Alert Drug)' : ''}
+    - ความรุนแรง (Severity): ${currentRCARow.severity}
+    - รายละเอียดเหตุการณ์: ${currentRCARow.incidentDesc}
+    - การจัดการเบื้องต้น: ${currentRCARow.initialMgmt}
 
-            try {
-                // Step 2: Fetching
-                Swal.update({
-                    title: 'ขั้นตอนที่ 2/3',
-                    html: '<span class="text-blue-600 font-semibold">AI กำลังวิเคราะห์ข้อมูล</span><br><span class="text-sm text-slate-500">ประมวลผลด้วย Gemini 2.5 Flash-Lite<br>(ประเมิน Risk Matrix, ไทม์ไลน์, RCA และ Action Plan)</span>'
-                });
+    ตอบตาม format นี้เท่านั้น:
+    Likelihood: [1-5]
+    Impact: [1-5]
+    RootCause:
+    ...
+    ActionPlan:
+    ...
+    `;
 
-                const response = await fetch(GEMINI_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: { temperature: 0.1 }
-                    })
-                });
+    Swal.fire({
+        title: 'ขั้นตอนที่ 1/3',
+        html: 'กำลังเตรียมข้อมูล...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
 
-                // Step 3: Parsing
-                Swal.update({
-                    title: 'ขั้นตอนที่ 3/3',
-                    html: '<span class="text-emerald-600 font-semibold">กำลังนำผลลัพธ์ใส่ลงในแบบฟอร์ม...</span>'
-                });
+    try {
+        Swal.update({
+            title: 'ขั้นตอนที่ 2/3',
+            html: 'AI กำลังวิเคราะห์...'
+        });
 
-                const data = await response.json();
-                
-                if(data.candidates && data.candidates[0] && data.candidates[0].content) {
-                    let text = data.candidates[0].content.parts[0].text;
-                    
-                    text = text.replace(/\*\*/g, ''); // Clean markdown
-
-                    let likelihoodMatch = text.match(/Likelihood:\s*([1-5])/i);
-                    let impactMatch = text.match(/Impact:\s*([1-5])/i);
-                    let rcMatch = text.match(/RootCause:([\s\S]*?)ActionPlan:/i);
-                    let apMatch = text.match(/ActionPlan:([\s\S]*)/i);
-
-                    let l_val = likelihoodMatch ? likelihoodMatch[1] : null;
-                    let i_val = impactMatch ? impactMatch[1] : null;
-                    let rootCause = rcMatch ? rcMatch[1].trim() : "";
-                    let actionPlan = apMatch ? apMatch[1].trim() : "";
-
-                    if(!rcMatch || !apMatch) {
-                        let parts = text.split(/ActionPlan:|มาตรการแก้ไข|Action Plan/i);
-                        rootCause = parts[0].replace(/RootCause:|สาเหตุเชิงระบบ|Root Cause/i, '').trim();
-                        actionPlan = parts[1] ? parts[1].trim() : '';
+        const response = await fetch(GEMINI_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [
+                    {
+                        role: "user",
+                        parts: [{ text: prompt }]
                     }
-
-                    if(l_val) document.getElementById('rca_likelihood').value = l_val;
-                    if(i_val) document.getElementById('rca_impact').value = i_val;
-                    document.getElementById('rca_rootCause').value = rootCause;
-                    document.getElementById('rca_actionPlan').value = actionPlan;
-
-                    if(l_val || i_val) calculateMatrix();
-                    
-                    Swal.fire({
-                        icon: 'success', 
-                        title: 'วิเคราะห์เสร็จสิ้น!', 
-                        text: 'AI ประเมิน Risk Matrix, RCA และ Action Plan เรียบร้อยแล้ว', 
-                        confirmButtonText: 'รับทราบ',
-                        confirmButtonColor: '#4f46e5'
-                    });
-                } else {
-                    throw new Error("Invalid format from AI");
+                ],
+                generationConfig: {
+                    temperature: 0.1,
+                    maxOutputTokens: 2048
                 }
-            } catch (error) {
-                console.error(error);
-                Swal.fire('ข้อผิดพลาด', 'กระบวนการ AI ขัดข้อง ไม่สามารถวิเคราะห์ได้ในขณะนี้', 'error');
-            }
+            })
+        });
+
+        // ✅ สำคัญมาก: เช็ค status
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error("API ERROR:", errText);
+            throw new Error("Gemini API error");
         }
+
+        Swal.update({
+            title: 'ขั้นตอนที่ 3/3',
+            html: 'กำลังประมวลผลผลลัพธ์...'
+        });
+
+        const data = await response.json();
+        console.log("Gemini raw:", data);
+
+        // ✅ กัน undefined
+        const text =
+            data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+        if (!text) throw new Error("No text response");
+
+        // --- Clean ---
+        const cleanText = text.replace(/\*\*/g, '');
+
+        // --- Extract ---
+        const likelihoodMatch = cleanText.match(/Likelihood:\s*([1-5])/i);
+        const impactMatch = cleanText.match(/Impact:\s*([1-5])/i);
+        const rcMatch = cleanText.match(/RootCause:([\s\S]*?)ActionPlan:/i);
+        const apMatch = cleanText.match(/ActionPlan:([\s\S]*)/i);
+
+        const l_val = likelihoodMatch?.[1] || "";
+        const i_val = impactMatch?.[1] || "";
+        const rootCause = rcMatch?.[1]?.trim() || "";
+        const actionPlan = apMatch?.[1]?.trim() || "";
+
+        // --- Assign ---
+        if (l_val) document.getElementById('rca_likelihood').value = l_val;
+        if (i_val) document.getElementById('rca_impact').value = i_val;
+        document.getElementById('rca_rootCause').value = rootCause;
+        document.getElementById('rca_actionPlan').value = actionPlan;
+
+        if (l_val || i_val) calculateMatrix();
+
+        Swal.fire({
+            icon: 'success',
+            title: 'สำเร็จ',
+            text: 'AI วิเคราะห์เรียบร้อยแล้ว'
+        });
+
+    } catch (error) {
+        console.error("FULL ERROR:", error);
+
+        Swal.fire(
+            'ข้อผิดพลาด',
+            'AI ไม่สามารถวิเคราะห์ได้ (ดู console)',
+            'error'
+        );
+    }
+}
 
         // --- Export to Word ---
         function exportToWord() {
